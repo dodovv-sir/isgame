@@ -1,0 +1,403 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<title>寻找小土豆</title>
+		<link href="css/main.css" type="text/css" rel="stylesheet"/>
+		<link href="css/game.css" type="text/css" rel="stylesheet"/>
+
+	</head>
+	<body class="bg">
+		<div class="puzzle-bg"></div>
+		<div class="grid">
+			<div class="page" id="loading">
+				<div class="loading-txt">加载中...</div>
+			</div>
+			<div class="page hide" id="index">
+				<h1 class="game-title">不一样的土豆努<i class="nunu"></i></h1>
+				<!-- <h2>Find The Shrimp</h2> -->
+				<div class="game-intro">这里有很多小土豆努，但有只土豆努的背景色<span>不同</span>，请找出那只不一样的土豆努吧！</div>
+				<div class="btns">
+					<button data-type="color" class="btn play-btn">	开始游戏	</button>
+				</div>
+			</div>
+			<div class="page hide" id="room">
+				<header>
+					<span class="lv">关卡：<em id="level-text">1</em></span>
+					<span class="time" id="time-text">30</span>
+					<button class="btn-pause" id="pause-btn">暂停</button>
+				</header>
+				<div class="game-container"><div id="box" class="lv2"></div></div>
+			</div>
+			
+			<!-- 游戏结束弹窗 - 独立 -->
+			<div id="gameover-dialog" class="hide">
+				<div class="dialog-inner">
+					<div class="dialog-content">
+						<h3 id="gameover-text">游戏结束</h3>
+						<div class="btn-wrap">
+							<button class="btn btn-restart" id="restart-btn">再来一次</button>
+							<button class="btn btn-home" id="home-btn">返回首页</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<!-- 游戏暂停弹窗 - 独立 -->
+			<div id="pause-dialog" class="hide">
+				<div class="dialog-inner">
+					<div class="dialog-content">
+						<h3>游戏暂停</h3>
+						<div class="btn-wrap">
+							<button class="btn btn-resume" id="resume-btn">继续游戏</button>
+							<button class="btn btn-home" id="pause-home-btn">返回首页</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// 游戏状态变量
+			let currentLevel = 1;
+			let currentGridSize = 2;
+			let gameTime = 30;
+			let gameTimer = null;
+			let isPaused = false;
+			let targetPosition = 0;
+			let baseColor = null;
+			let targetColor = null;
+			
+			const shrimpImage = 'https://s41.ax1x.com/2026/01/04/pZaQgmT.png';
+			
+			// DOM元素引用
+			const loadingPage = document.getElementById('loading');
+			const indexPage = document.getElementById('index');
+			const roomPage = document.getElementById('room');
+			const gameBox = document.getElementById('box');
+			const levelText = document.getElementById('level-text');
+			const timeText = document.getElementById('time-text');
+			const gameoverText = document.getElementById('gameover-text');
+			
+			// 弹窗元素
+			const gameoverDialog = document.getElementById('gameover-dialog');
+			const pauseDialog = document.getElementById('pause-dialog');
+			
+			// 初始化游戏
+			function initGame() {
+				// 显示加载页面
+				showPage('loading');
+				
+				// 模拟加载时间
+				setTimeout(() => {
+					showPage('index');
+				}, 1000);
+				
+				// 绑定事件
+				bindEvents();
+			}
+			
+			// 绑定事件
+			function bindEvents() {
+				// 开始游戏按钮
+				document.querySelector('.play-btn').addEventListener('click', startGame);
+				
+				// 暂停按钮
+				document.getElementById('pause-btn').addEventListener('click', pauseGame);
+				
+				// 继续游戏按钮
+				document.getElementById('resume-btn').addEventListener('click', resumeGame);
+				
+				// 重新开始按钮
+				document.getElementById('restart-btn').addEventListener('click', restartGame);
+				
+				// 返回首页按钮
+				document.getElementById('home-btn').addEventListener('click', goHome);
+				document.getElementById('pause-home-btn').addEventListener('click', goHome);
+			}
+			
+			// 开始游戏
+			function startGame() {
+				currentLevel = 1;
+				currentGridSize = 2;
+				gameTime = 30;
+				isPaused = false;
+				
+				// 确保弹窗隐藏
+				hideAllDialogs();
+				
+				showPage('room');
+				generateGameGrid();
+				startTimer();
+			}
+			
+			// 生成游戏网格
+			function generateGameGrid() {
+				// 根据关卡确定网格大小
+				if (currentLevel === 1) {
+					currentGridSize = 2;
+				} else if (currentLevel === 2) {
+					currentGridSize = 3;
+				} else if (currentLevel >= 3 && currentLevel <= 4) {
+					currentGridSize = 4;
+				} else if (currentLevel >= 5 && currentLevel <= 7) {
+					currentGridSize = 5;
+				} else if (currentLevel >= 8 && currentLevel <= 10) {
+					currentGridSize = 6;
+				} else if (currentLevel >= 11 && currentLevel <= 14) {
+					currentGridSize = 7;
+				} else {
+					currentGridSize = 8; // 15关以后都是8x8
+				}
+				
+				// 为当前关卡生成基础颜色（蓝色系）
+				baseColor = getRandomBlueColor();
+				
+				// 根据基础颜色生成目标颜色（略有差异）
+				targetColor = getDifferentColor(baseColor);
+				
+				// 设置网格类
+				gameBox.className = `lv${currentGridSize}`;
+				
+				// 清空网格
+				gameBox.innerHTML = '';
+				
+				// 更新关卡显示
+				levelText.textContent = currentLevel;
+				
+				// 计算网格单元格大小
+				const cellCount = currentGridSize * currentGridSize;
+				
+				// 随机选择目标位置
+				targetPosition = Math.floor(Math.random() * cellCount);
+				
+				// 创建网格单元格
+				for (let i = 0; i < cellCount; i++) {
+					const cell = document.createElement('span');
+					
+					// 设置单元格背景颜色
+					if (i === targetPosition) {
+						// 目标单元格 - 不同的颜色
+						cell.style.backgroundColor = targetColor;
+						cell.dataset.type = 'target';
+					} else {
+						// 普通单元格 - 基础颜色
+						cell.style.backgroundColor = baseColor;
+						cell.dataset.type = 'normal';
+					}
+					
+					// 创建内容元素
+					const contentDiv = document.createElement('div');
+					contentDiv.className = 'cell-content';
+					
+					// 所有单元格都使用虾虾图片
+					contentDiv.style.backgroundImage = `url(${shrimpImage})`;
+					// 添加内容到单元格
+					cell.appendChild(contentDiv);
+					// 添加点击事件
+					cell.addEventListener('click', () => handleCellClick(cell, i === targetPosition));
+					// 添加到网格
+					gameBox.appendChild(cell);
+				}
+			}
+			
+			// 获取随机蓝色系颜色
+			function getRandomBlueColor() {
+				// 生成蓝色系的RGB值
+				// 蓝色分量较高，红色和绿色分量较低
+				const r = Math.floor(Math.random() * 50 + 100);
+				const g = Math.floor(Math.random() * 100 + 100);
+				const b = Math.floor(Math.random() * 100 + 155);
+				return `rgb(${r}, ${g}, ${b})`;
+			}
+			
+			// 获取与基础颜色不同的颜色
+			function getDifferentColor(baseColor) {
+				// 解析基础颜色
+				const rgb = baseColor.match(/\d+/g);
+				let r = parseInt(rgb[0]);
+				let g = parseInt(rgb[1]);
+				let b = parseInt(rgb[2]);
+				
+				// 根据关卡调整颜色差异
+				// 关卡越高，颜色差异越小，难度越大
+				const difficultyFactor = Math.max(0.3, 1 - currentLevel * 0.05);
+				
+				// 随机调整RGB值
+				const adjustR = Math.random() < 0.5 ? 1 : -1;
+				const adjustG = Math.random() < 0.5 ? 1 : -1;
+				const adjustB = Math.random() < 0.5 ? 1 : -1;
+				
+				// 调整颜色值，确保在0-255范围内
+				r = Math.min(255, Math.max(0, r + adjustR * Math.floor(30 * difficultyFactor)));
+				g = Math.min(255, Math.max(0, g + adjustG * Math.floor(30 * difficultyFactor)));
+				b = Math.min(255, Math.max(0, b + adjustB * Math.floor(30 * difficultyFactor)));
+				
+				return `rgb(${r}, ${g}, ${b})`;
+			}
+			
+			// 处理单元格点击
+			function handleCellClick(cell, isTarget) {
+				if (isPaused) return;
+				
+				// 移除之前的选择
+				document.querySelectorAll('#box span.selected').forEach(el => {
+					el.classList.remove('selected');
+				});
+				
+				// 标记当前选择
+				cell.classList.add('selected');
+				
+				if (isTarget) {
+					// 正确选择
+					cell.classList.add('correct');
+					
+					// 进入下一关
+					setTimeout(() => {
+						nextLevel();
+					}, 500);
+				} else {
+					// 错误选择，减少时间
+					gameTime = Math.max(0, gameTime - 3);
+					timeText.textContent = gameTime;
+					
+					// 时间不足警告
+					if (gameTime < 10) {
+						timeText.classList.add('danger');
+					}
+				}
+			}
+			
+			// 进入下一关
+			function nextLevel() {
+				currentLevel++;
+				
+				// 过关奖励3秒
+				gameTime += 3;
+				timeText.textContent = gameTime;
+				if (gameTime >= 10) {
+					timeText.classList.remove('danger');
+				}
+				
+				// 重新生成网格
+				generateGameGrid();
+			}
+			
+			// 开始计时器
+			function startTimer() {
+				clearInterval(gameTimer);
+				gameTime = 30;
+				timeText.textContent = gameTime;
+				timeText.classList.remove('danger');
+				
+				gameTimer = setInterval(() => {
+					if (!isPaused) {
+						gameTime--;
+						timeText.textContent = gameTime;
+						
+						// 时间不足警告
+						if (gameTime < 10) {
+							timeText.classList.add('danger');
+						}
+						
+						// 时间用完，游戏结束
+						if (gameTime <= 0) {
+							gameOver();
+						}
+					}
+				}, 1000);
+			}
+			
+			// 暂停游戏
+			function pauseGame() {
+				isPaused = true;
+				// 显示暂停弹窗
+				pauseDialog.classList.remove('hide');
+			}
+			
+			// 继续游戏
+			function resumeGame() {
+				isPaused = false;
+				// 隐藏暂停弹窗
+				pauseDialog.classList.add('hide');
+			}
+			
+			// 重新开始游戏
+			function restartGame() {
+				// 隐藏所有弹窗
+				hideAllDialogs();
+				startGame();
+			}
+			
+			// 返回首页
+			function goHome() {
+				// 隐藏所有弹窗
+				hideAllDialogs();
+				showPage('index');
+				clearInterval(gameTimer);
+			}
+			
+			// 游戏结束
+			function gameOver() {
+				clearInterval(gameTimer);
+				
+				// 计算等级称号
+				const titles = ["土豆烹饪萌新", "土豆烹饪能手", "土豆烹饪熟手", "土豆烹饪高手", "土豆烹饪达人", "土豆烹饪大师", "土豆烹饪宗师"];
+				let titleIndex = 0;
+				
+				if (currentLevel >= 20) {
+					titleIndex = 6;
+				} else if (currentLevel >= 15) {
+					titleIndex = 5;
+				} else if (currentLevel >= 10) {
+					titleIndex = 4;
+				} else if (currentLevel >= 7) {
+					titleIndex = 3;
+				} else if (currentLevel >= 4) {
+					titleIndex = 2;
+				} else if (currentLevel >= 2) {
+					titleIndex = 1;
+				}
+				
+				const title = titles[titleIndex];
+				gameoverText.textContent = `游戏结束！你是${title}，闯过了${currentLevel}关`;
+				
+				// 显示游戏结束弹窗
+				gameoverDialog.classList.remove('hide');
+			}
+			
+			// 隐藏所有弹窗
+			function hideAllDialogs() {
+				gameoverDialog.classList.add('hide');
+				pauseDialog.classList.add('hide');
+			}
+			
+			// 显示指定页面
+			function showPage(pageId) {
+				// 隐藏所有页面
+				document.querySelectorAll('.page').forEach(el => {
+					el.classList.add('hide');
+				});
+				
+				// 显示指定页面
+				document.getElementById(pageId).classList.remove('hide');
+			}
+			
+			// 页面加载完成后初始化游戏
+			document.addEventListener('DOMContentLoaded', initGame);
+			
+			// 防止手机端双击缩放
+			let lastTouchEnd = 0;
+			document.addEventListener('touchend', function(event) {
+				const now = (new Date()).getTime();
+				if (now - lastTouchEnd <= 300) {
+					event.preventDefault();
+				}
+				lastTouchEnd = now;
+			}, false);
+		</script>
+	</body>
+</html>

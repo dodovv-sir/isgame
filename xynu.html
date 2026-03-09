@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="format-detection" content="telephone=no">
+    <title>测试下与你相伴一生的努是谁吧~</title>
+    <link href="css/main.css" type="text/css" rel="stylesheet"/>
+    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+
+</head>
+<body class="bg">
+    <div class="game-wrapper">
+        <div id="homePage" class="game-page active">
+            <div class="puzzle-bg"></div>
+            <div class="home-content">
+                <h1 class="game-title">测试下与你相伴一生的努是谁吧~</h1>
+                <div class="machine-wrapper">
+                    <div id="my-lucky"></div>
+                </div>
+                <div class="prize-display" id="result-display">
+                    点击开始按钮，看看你会抽中哪只努！
+                </div>
+                
+                <div class="controls">
+                    <button class="btn btn-start" id="btn_start">开始抽奖</button>
+                    <button class="btn btn-stop" id="btn_stop">停止</button>
+                </div>
+            </div>
+        </div>
+    </div>
+	
+	<script src="https://cdn.jsdelivr.net/npm/lucky-canvas@1.7.25"></script>
+	<script>
+	    // 奖品数据 - 所有奖品信息都集中在这里
+	    const prizeData = [
+			{name: "虾虾",image: "https://s41.ax1x.com/2026/01/04/pZaupee.png",description: "你抽中了虾虾，虾虾勉为其难地认可你了！", weight: 2},
+	        {name: "微笑",image: "https://s41.ax1x.com/2026/01/07/pZwSSaT.png",description: "微笑看到你的第一眼就很喜欢你哦~", weight: 2},
+	        {name: "小土豆",image: "https://s41.ax1x.com/2026/01/04/pZaQgmT.png",description: "你也喜欢吃小土豆吗？", weight: 2},
+	        {name: "臭脸",image: "https://s41.ax1x.com/2026/01/07/pZwSCiF.png",description: "臭脸表示你不错，同意和你一起生活！", weight: 2},
+	        {name: "兔兔大王",image: "https://s41.ax1x.com/2026/01/07/pZwSpIU.png",description: "兔兔大王认为你运气不错，决定让你当他的随从！", weight: 2},
+	        {name: "鸥",image: "https://s41.ax1x.com/2026/01/04/pZaQ6XV.png",description: "鸥啄了你一口，不屑地飞走了", weight: 5}
+	    ];
+	
+	    // 从prizeData生成老虎机的prizes配置
+	    const slotPrizes = prizeData.map(prize => ({
+	        background: 'rgba(255,255,255,0.7)',
+	        borderRadius: '10px',
+	        imgs: [{width: '80%',top: '10%',src: prize.image}]
+	    }));
+	
+	    // 老虎机初始化
+	    const myLucky = new LuckyCanvas.SlotMachine('#my-lucky', {
+	        width: '340px',
+	        height: '150px',
+	        blocks: [
+	            { padding: '10px', background: '#4a8fe7' },
+	            { padding: '10px', background: '#6ba2f0' },
+	        ],
+	        prizes: slotPrizes,
+	        slots: [
+	            { order: [0, 1, 2, 3, 4, 5], speed: 20, direction: 1 },
+	            { order: [2, 0, 1, 4, 3, 5], speed: 18, direction: -1 },
+	            { order: [1, 2, 3, 4, 0, 5], speed: 16, direction: 1 },
+	        ],
+	        defaultConfig: {
+	            rowSpacing: '10px',
+	            colSpacing: '10px',
+	        }
+	    });
+	    
+	    // 老虎机控制
+	    const btn_start = document.getElementById('btn_start');
+	    const btn_stop = document.getElementById('btn_stop');
+	    const resultDisplay = document.getElementById('result-display');
+	    
+	    btn_start.onclick = function() {
+	        myLucky.play();
+	        resultDisplay.textContent = "正在抽奖中...";
+	        resultDisplay.classList.remove('winning');
+	        btn_start.disabled = true;
+	        btn_stop.disabled = false;
+	    };
+	    
+	    btn_stop.onclick = function() {
+	        // 随机选择一个奖品
+	        // const prizeIndex = Math.floor(Math.random() * prizeData.length);
+	        const prizeIndex = choujiang(prizeData);
+			myLucky.stop(prizeIndex);
+	        
+	        // 根据奖品索引显示结果
+	        setTimeout(() => {
+	            const prize = prizeData[prizeIndex];
+	            resultDisplay.textContent = prize.description;
+	            resultDisplay.classList.add('winning');
+	            btn_start.disabled = false;
+	            btn_stop.disabled = true;
+	        }, 3000);
+	    };
+	    
+	    // 初始化时禁用停止按钮
+	    btn_stop.disabled = true;
+		
+		function choujiang(prizeList) {
+		    const weightPool = [];
+		    prizeList.forEach((prize, index) => {
+		        const weight = Math.max(1, parseInt(prize.weight) || 1);
+		        for (let i = 0; i < weight; i++) {
+		            weightPool.push(index);
+		        }
+		    });
+			
+		    const randomIndex = Math.floor(Math.random() * weightPool.length);
+		    const jiangid = weightPool[randomIndex];
+			
+			return jiangid;
+		}
+	</script>
+</body>
+</html>

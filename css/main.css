@@ -1,0 +1,464 @@
+@charset "utf-8";
+
+/* ============ CSS变量/设计Token ============ */
+:root {
+  /* 颜色系统 */
+  --color-primary: #4a8fe7;
+  --color-primary-light: #6ba2f0;
+  --color-primary-dark: #3a7bd5;
+  --color-secondary: #a8e6cf;
+  --color-secondary-light: #dcedc1;
+  --color-secondary-dark: #8fd5b6;
+  --color-accent: #ffd3b6;
+  --color-text-primary: #333;
+  --color-text-secondary: #666;
+  --color-text-light: #888;
+  --color-white: #ffffff;
+  --color-bg-light: rgba(255, 255, 255, 0.9);
+  
+  /* 间距系统 - 使用px单位，避免rem缩放问题 */
+  --spacing-xs: 10px;
+  --spacing-sm: 15px;
+  --spacing-md: 20px;
+  --spacing-lg: 30px;
+  --spacing-xl: 40px;
+  --spacing-xxl: 50px;
+  
+  /* 圆角系统 */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  
+  /* 阴影系统 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.2);
+  --shadow-primary: 0 10px 25px rgba(74, 143, 231, 0.3);
+  
+  /* 动画速度 */
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+}
+
+/* ============ 全局重置与基础样式 ============ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px; /* 标准字体大小，不要设置为50px */
+  height: 100%;
+}
+
+body {
+  width: 100%;
+  min-height: 100vh;
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+/* ============ 背景样式 ============ */
+/* 移除原.puzzle-bg的样式，重新构建 */
+.bg {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 50%, #ffd3b6 100%);
+  color: #333;
+}
+
+.puzzle-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(90deg, transparent 79px, rgba(74, 143, 231, 0.1) 79px, rgba(74, 143, 231, 0.1) 81px, transparent 81px),
+    linear-gradient(0deg, transparent 79px, rgba(74, 143, 231, 0.1) 79px, rgba(74, 143, 231, 0.1) 81px, transparent 81px);
+  background-size: 80px 80px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============ 游戏内容容器 ============ */
+.game-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-xxl) var(--spacing-md);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ============ 标题样式 ============ */
+.game-title {
+  font-size: 2.5rem; /* 使用rem，但基于16px根字体 */
+  color: var(--color-primary);
+  font-weight: 800;
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+  text-shadow: 4px 4px 8px rgba(74, 143, 231, 0.2);
+  position: relative;
+  padding: 0 var(--spacing-xl);
+}
+
+.game-title::before,
+.game-title::after {
+  content: "🧩";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 3rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+.game-title::before {
+  left: 0;
+  animation-delay: 0s;
+}
+
+.game-title::after {
+  right: 0;
+  animation-delay: 0.5s;
+}
+
+/* ============ 介绍文本样式 ============ */
+.game-intro {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin-bottom: var(--spacing-xxl);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.8;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+}
+
+.game-intro strong {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* ============ 游戏分类网格 ============ */
+.game-ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-xl);
+  padding: var(--spacing-md);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-li {
+  background: var(--color-bg-light);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+  border: 2px solid transparent;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-li:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 分类标题样式 */
+.game-li h3 {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 3px solid;
+  width: 100%;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+/* 不同分类的颜色主题 */
+.game-li:nth-child(1) h3 {
+  color: #4a8fe7; /* 益智类 - 蓝色 */
+  border-bottom-color: #4a8fe7;
+}
+
+.game-li:nth-child(2) h3 {
+  color: #e74a8f; /* 射击类 - 粉色 */
+  border-bottom-color: #e74a8f;
+}
+
+.game-li:nth-child(3) h3 {
+  color: #8fe74a; /* 眼力类 - 绿色 */
+  border-bottom-color: #8fe74a;
+}
+
+.game-li:nth-child(4) h3 {
+  color: #e7a84a; /* 运气类 - 橙色 */
+  border-bottom-color: #e7a84a;
+}
+
+/* ============ 按钮样式系统 ============ */
+.btn {
+  display: inline-block;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 300px;
+  margin-bottom: var(--spacing-md);
+  letter-spacing: 1px;
+  box-sizing: border-box;
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: var(--color-white);
+  box-shadow: var(--shadow-primary);
+}
+
+.btn--primary:hover {
+  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 15px 30px rgba(74, 143, 231, 0.4);
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: rotate(45deg);
+  transition: all var(--transition-slow);
+  opacity: 0;
+}
+
+.btn:hover::after {
+  animation: shine 1.5s ease-out;
+  opacity: 1;
+}
+
+/* 游戏按钮变体 - 只定义差异样式 */
+.btn--game {
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
+  margin-top: var(--spacing-sm);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: var(--color-white);
+  box-shadow: var(--shadow-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+.btn--game::before {
+  content: '🎮';
+  font-size: 1rem;
+}
+
+.btn--game:hover {
+  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 15px 30px rgba(74, 143, 231, 0.4);
+}
+
+/* ============ 动画定义 ============ */
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(-50%);
+  }
+  50% {
+    transform: translateY(-60%);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============ 响应式设计 ============ */
+@media (max-width: 768px) {
+  /* 移动端：减小字体和间距 */
+  html {
+    font-size: 14px;
+  }
+  
+  .game-ul {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-sm);
+  }
+  
+  .game-title {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-lg);
+    padding: 0 var(--spacing-md);
+  }
+  
+  .game-title::before,
+  .game-title::after {
+    font-size: 2.2rem;
+    position: static;
+    transform: none;
+    display: inline-block;
+    margin: 0 10px;
+  }
+  
+  .game-intro {
+    font-size: 1rem;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+  }
+  
+  .game-li {
+    padding: var(--spacing-lg);
+    margin: 0;
+  }
+  
+  .game-li h3 {
+    font-size: 1.3rem;
+  }
+  
+  .btn {
+    font-size: 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 12px;
+  }
+  
+  .game-title {
+    font-size: 1.6rem;
+  }
+  
+  .game-title::before,
+  .game-title::after {
+    font-size: 1.8rem;
+  }
+  
+  .game-content {
+    padding: var(--spacing-lg) var(--spacing-sm);
+  }
+  
+  .btn {
+    font-size: 0.9rem;
+    padding: 10px 15px;
+  }
+}
+
+/* 针对横屏设备优化 */
+@media (max-height: 600px) and (orientation: landscape) {
+  .game-content {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+  
+  .game-title {
+    font-size: 1.8rem;
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .game-intro {
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.9rem;
+    padding: var(--spacing-sm);
+  }
+  
+  .game-ul {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+  }
+}
+
+/* 针对超小屏幕手机优化 */
+@media (max-width: 360px) {
+  .game-title {
+    font-size: 1.4rem;
+  }
+  
+  .game-title::before,
+  .game-title::after {
+    font-size: 1.5rem;
+  }
+}
+
+/* 针对iPad等平板设备优化 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .game-ul {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 800px;
+  }
+}
+
+/* 确保按钮在移动端容易点击 */
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .btn:hover {
+    transform: none;
+  }
+  
+  .btn:active {
+    transform: scale(0.95);
+  }
+}

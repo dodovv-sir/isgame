@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="format-detection" content="telephone=no">
+    <title>虾虾保卫战</title>
+    <link href="css/main.css" type="text/css" rel="stylesheet"/>
+    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+</head>
+<body class="bg">
+    <div class="puzzle-bg"></div>
+    <div class="game-wrapper">
+		<!-- 首页 -->
+        <div id="homePage" class="game-page active">
+            <div class="home-content">
+                <h1 class="game-title">虾虾保卫战</h1>
+                <p class="game-intro">
+                    欢迎来到「虾虾保卫战」！使用下方按钮帮助虾虾打败贼鸥吧！
+                </p>
+                
+                <button class="start-btn" id="startGame">开始游戏</button>
+                <button class="start-btn" id="showRules" style="background: linear-gradient(135deg, #ff8b94, #ffaaa5); margin-top: 15px;">游戏规则</button>
+				
+				<div id="difficultyPopup" class="game-over">
+				    <div class="game-over-content">
+				        <h2>选择游戏难度</h2>
+				        <div class="difficulty-buttons">
+				            <button class="difficulty-btn easy" data-difficulty="easy">
+				                <span class="difficulty-title">简单模式</span>
+				                <span class="difficulty-desc">AI移动慢，弹幕少</span>
+				            </button>
+				            <button class="difficulty-btn hard" data-difficulty="hard">
+				                <span class="difficulty-title">困难模式</span>
+				                <span class="difficulty-desc">AI移动快，弹幕密集</span>
+				            </button>
+				            <button class="difficulty-btn hell" data-difficulty="hell">
+				                <span class="difficulty-title">地狱模式</span>
+				                <span class="difficulty-desc">AI超快，弹幕如雨</span>
+				            </button>
+				        </div>
+				        <div class="game-over-buttons">
+				            <button class="game-over-btn cancel" id="cancelDifficulty">返回</button>
+				        </div>
+				    </div>
+				</div>
+            </div>
+        </div>
+        
+        <!-- 游戏页面 -->
+        <div id="gamePage" class="game-page">
+            <div class="game-container">
+                <button class="back-btn" id="backToHome">←</button>
+				<button class="swap-btn" id="swapControls">⇅</button>
+                
+                <!-- 玩家血量条 -->
+                <div class="hp-container player-hp-container">
+                    <div class="hp-bar player-hp-bar"></div>
+                    <div class="hp-text">玩家: 100 HP</div>
+                </div>
+
+                <!-- AI血量条 -->
+                <div class="hp-container ai-hp-container">
+                    <div class="hp-bar ai-hp-bar"></div>
+                    <div class="hp-text">对手: 100 HP</div>
+                </div>
+
+                <!-- 玩家角色 -->
+                <div class="character player" id="player" data-emoji="🧩"></div>
+
+                <!-- AI角色 -->
+                <div class="character ai" id="ai" data-emoji="🍟"></div>
+
+                <!-- 移动端控制按钮 -->
+                <div class="mobile-controls" id="mobile-controls">
+                    <div class="control-btn up-btn" id="upBtn">
+                        ↑
+                    </div>
+                    <div class="control-btn down-btn" id="downBtn">
+                        ↓
+                    </div>
+                </div>
+
+                <!-- 操作提示 -->
+                <div class="tips">
+                    操作提示：点击下方按钮移动角色 | 自动发射弹幕 | 击败对手获胜
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏规则弹窗 -->
+        <div id="rulesPopup" class="game-over">
+            <div class="game-over-content">
+                <h2>游戏规则</h2>
+                <p>1. 点击上下按钮，操控虾虾灵活走位，躲避贼鸥的弹幕攻击</p>
+                <p>2. 虾虾会自动向对手发射弹幕</p>
+                <p>3. 弹幕击中对方会减少其血量</p>
+                <p>4. 先使对方血量为0者获胜</p>
+                <div class="game-over-buttons">
+                    <button class="game-over-btn restart" id="closeRules">开始游戏</button>
+                    <button class="game-over-btn home" id="backFromRules">返回首页</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏结束弹窗 -->
+        <div id="gameOverPopup" class="game-over">
+            <div class="game-over-content">
+                <h2 id="gameOverTitle">游戏结束</h2>
+                <p id="gameOverMessage"></p>
+                <div class="game-over-buttons">
+                    <button class="game-over-btn restart" id="restartGame">重新开始</button>
+                    <button class="game-over-btn home" id="returnHome">返回首页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+		
+		
+        // ===================== 【参数调整区】=====================
+        // 1. 基础数值调整 - 手机端优化
+        const DIFFICULTY_CONFIG = {
+            easy: {
+                playerHp: 120,          // 玩家初始血量
+                aiHp: 100,              // AI初始血量
+                playerSpeed: 8,         // 玩家移动速度
+                aiSpeed: 4,             // AI移动速度
+                bulletSpeed: 4,         // 弹幕速度
+                playerFireRate: 900,    // 玩家发射频率（毫秒）
+                aiFireRate: 1500,       // AI发射频率（毫秒）
+                bulletDamage: 8,        // 单颗弹幕伤害
+                aiMoveRange: 150,       // AI移动范围
+            },
+            hard: {
+                playerHp: 100,
+                aiHp: 100,
+                playerSpeed: 8,
+                aiSpeed: 6,
+                bulletSpeed: 6,
+                playerFireRate: 700,
+                aiFireRate: 1000,
+                bulletDamage: 10,
+                aiMoveRange: 200,
+            },
+            hell: {
+                playerHp: 80,
+                aiHp: 150,
+                playerSpeed: 8,
+                aiSpeed: 8,
+                bulletSpeed: 10,
+                playerFireRate: 700,
+                aiFireRate: 600,
+                bulletDamage: 15,
+                aiMoveRange: 250,
+            }
+        };
+        
+        // 当前游戏难度，默认为困难
+        let currentDifficulty = 'hard';
+        let GAME_CONFIG = DIFFICULTY_CONFIG[currentDifficulty];
+
+        // ===================== 核心状态管理 =====================
+        let player = {
+            element: document.getElementById('player'),
+            hp: GAME_CONFIG.playerHp,
+            maxHp: GAME_CONFIG.playerHp,
+            y: 0,
+            width: 60,
+            height: 60
+        };
+
+        let ai = {
+            element: document.getElementById('ai'),
+            hp: GAME_CONFIG.aiHp,
+            maxHp: GAME_CONFIG.aiHp,
+            y: 0,
+            width: 60,
+            height: 60,
+            moveDirection: 1, // 1表示向下，-1表示向上
+        };
+
+        let gameRunning = false;
+        let playerFireInterval;
+        let aiFireInterval;
+        let aiMoveInterval;
+        
+        // 手机端控制变量
+        let isMovingUp = false;
+        let isMovingDown = false;
+        let moveInterval = null;
+
+        // ===================== 页面导航函数 =====================
+        function showPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.game-page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // 显示指定页面
+            document.getElementById(pageId).classList.add('active');
+        }
+        
+        function showPopup(popupId) {
+            document.getElementById(popupId).style.display = 'flex';
+        }
+        
+        function hidePopup(popupId) {
+            document.getElementById(popupId).style.display = 'none';
+        }
+        
+        // ===================== 游戏初始化 =====================
+        function initGame(difficulty = 'hard') {
+			currentDifficulty = difficulty;
+			GAME_CONFIG = DIFFICULTY_CONFIG[currentDifficulty];
+			
+			// 重置游戏状态
+			player.hp = GAME_CONFIG.playerHp;
+			ai.hp = GAME_CONFIG.aiHp;
+			gameRunning = true;
+            
+            // 设置初始位置
+            const gameHeight = document.querySelector('.game-container').clientHeight;
+            player.y = gameHeight / 2;
+            ai.y = gameHeight / 2;
+            
+            player.element.style.top = player.y + 'px';
+            ai.element.style.top = ai.y + 'px';
+            
+            ai.moveDirection = Math.random() > 0.5 ? 1 : -1; // 随机初始移动方向
+
+            // 更新血量条
+            updateHpBar('player', player.hp);
+            updateHpBar('ai', ai.hp);
+
+            // 清除之前的定时器
+            clearAllIntervals();
+            
+            // 启动玩家自动发射弹幕
+            playerFireInterval = setInterval(() => {
+                if (gameRunning) createBullet('player');
+            }, GAME_CONFIG.playerFireRate);
+
+            // 启动AI自动发射弹幕
+            aiFireInterval = setInterval(() => {
+                if (gameRunning) createBullet('ai');
+            }, GAME_CONFIG.aiFireRate);
+
+            // 启动AI移动
+            aiMoveInterval = setInterval(() => {
+                if (gameRunning) moveAI();
+            }, 50); // 每50ms移动一次
+            
+            // 切换到游戏页面
+            showPage('gamePage');
+            
+            // 启动玩家移动监听
+            setupPlayerControls();
+        }
+        
+        // 设置玩家控制
+        function setupPlayerControls() {
+            // 清除之前的事件监听器
+            const upBtn = document.getElementById('upBtn');
+            const downBtn = document.getElementById('downBtn');
+            
+			 // 阻止所有可能触发菜单的事件
+			function preventMenu(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				return false;
+			}
+			
+			// 为控制按钮添加多种事件监听，防止长按菜单
+			const preventEvents = ['touchstart', 'touchend', 'touchmove', 'touchcancel', 
+								  'contextmenu', 'selectstart', 'dragstart', 'mousedown'];
+			
+			preventEvents.forEach(eventType => {
+				upBtn.addEventListener(eventType, preventMenu, { passive: false });
+				downBtn.addEventListener(eventType, preventMenu, { passive: false });
+			});
+			
+			// 保留原有的触摸事件，但要确保它们不会触发菜单
+			function upTouchStart(e) {
+				preventMenu(e);
+				isMovingUp = true;
+				startPlayerMovement();
+			}
+			
+			function downTouchStart(e) {
+				preventMenu(e);
+				isMovingDown = true;
+				startPlayerMovement();
+			}
+			
+            // 移除旧的事件监听器
+            upBtn.removeEventListener('touchstart', upTouchStart);
+            upBtn.removeEventListener('touchend', upTouchEnd);
+            downBtn.removeEventListener('touchstart', downTouchStart);
+            downBtn.removeEventListener('touchend', downTouchEnd);
+            
+            // 添加新的事件监听器
+            upBtn.addEventListener('touchstart', upTouchStart);
+            upBtn.addEventListener('touchend', upTouchEnd);
+            downBtn.addEventListener('touchstart', downTouchStart);
+            downBtn.addEventListener('touchend', downTouchEnd);
+            
+            // 桌面端支持鼠标事件
+            upBtn.addEventListener('mousedown', upTouchStart);
+            upBtn.addEventListener('mouseup', upTouchEnd);
+            upBtn.addEventListener('mouseleave', upTouchEnd);
+            downBtn.addEventListener('mousedown', downTouchStart);
+            downBtn.addEventListener('mouseup', downTouchEnd);
+            downBtn.addEventListener('mouseleave', downTouchEnd);
+        }
+        
+        function upTouchEnd() {
+            isMovingUp = false;
+            if (!isMovingDown) stopPlayerMovement();
+        }
+        
+        function downTouchEnd() {
+            isMovingDown = false;
+            if (!isMovingUp) stopPlayerMovement();
+        }
+        
+        // 清除所有定时器
+        function clearAllIntervals() {
+            clearInterval(playerFireInterval);
+            clearInterval(aiFireInterval);
+            clearInterval(aiMoveInterval);
+            clearInterval(moveInterval);
+            playerFireInterval = null;
+            aiFireInterval = null;
+            aiMoveInterval = null;
+            moveInterval = null;
+        }
+
+        // ===================== 玩家移动控制 =====================
+        // 持续移动函数
+        function startPlayerMovement() {
+            if (moveInterval || !gameRunning) return;
+
+            moveInterval = setInterval(() => {
+                if (!gameRunning) {
+                    stopPlayerMovement();
+                    return;
+                }
+
+                const gameHeight = document.querySelector('.game-container').clientHeight;
+                const playerHalfHeight = player.height / 2;
+
+                if (isMovingUp) {
+                    player.y = Math.max(playerHalfHeight, player.y - GAME_CONFIG.playerSpeed);
+                    player.element.style.top = player.y + 'px';
+                }
+
+                if (isMovingDown) {
+                    player.y = Math.min(gameHeight - playerHalfHeight, player.y + GAME_CONFIG.playerSpeed);
+                    player.element.style.top = player.y + 'px';
+                }
+
+                // 如果两个按钮都没按下，停止移动
+                if (!isMovingUp && !isMovingDown) {
+                    stopPlayerMovement();
+                }
+            }, 16); // 约60帧/秒
+        }
+
+        function stopPlayerMovement() {
+            if (moveInterval) {
+                clearInterval(moveInterval);
+                moveInterval = null;
+            }
+        }
+
+        // ===================== 游戏核心功能 =====================
+        // 1. AI移动 - 修复版
+        function moveAI() {
+            const gameHeight = document.querySelector('.game-container').clientHeight;
+            const aiHalfHeight = ai.height / 2;
+            
+            // 计算移动步长
+            let moveStep = GAME_CONFIG.aiSpeed * ai.moveDirection;
+            
+            // 应用移动
+            ai.y += moveStep;
+            
+            // 边界检测
+            if (ai.y <= aiHalfHeight) {
+                ai.y = aiHalfHeight;
+                ai.moveDirection = 1; // 到达顶部改为向下
+            } else if (ai.y >= gameHeight - aiHalfHeight) {
+                ai.y = gameHeight - aiHalfHeight;
+                ai.moveDirection = -1; // 到达底部改为向上
+            }
+            
+            // 小概率随机改变方向（增加AI的不可预测性）
+            if (Math.random() < 0.02) {
+                ai.moveDirection *= -1;
+            }
+            
+            // 应用位置
+            ai.element.style.top = ai.y + 'px';
+        }
+
+        // 2. 创建弹幕
+        function createBullet(owner) {
+            const bullet = document.createElement('div');
+            const character = owner === 'player' ? player : ai;
+            const bulletClass = owner === 'player' ? 'player-bullet' : 'ai-bullet';
+            const bulletEmoji = owner === 'player' ? '🧩' : '🍟';
+
+            // 设置弹幕基础样式
+            bullet.className = `bullet ${bulletClass}`;
+            bullet.dataset.owner = owner;
+            bullet.textContent = bulletEmoji;
+
+            // 设置弹幕初始位置
+            const characterRect = character.element.getBoundingClientRect();
+            const gameContainerRect = document.querySelector('.game-container').getBoundingClientRect();
+            
+            if (owner === 'player') {
+                // 玩家弹幕：从角色左侧发射
+                bullet.style.left = (characterRect.left - gameContainerRect.left - 24) + 'px';
+                bullet.style.top = (characterRect.top + characterRect.height / 2 - 12 - gameContainerRect.top) + 'px';
+            } else {
+                // AI弹幕：从角色右侧发射
+				bullet.style.left = (characterRect.right - gameContainerRect.left) + 'px';
+				bullet.style.top = (characterRect.top + characterRect.height / 2 - 12 - gameContainerRect.top) + 'px';
+            }
+
+            // 添加到游戏容器
+            document.querySelector('.game-container').appendChild(bullet);
+
+            // 弹幕移动动画
+            moveBullet(bullet, owner);
+        }
+
+        // 3. 弹幕移动与碰撞检测
+        function moveBullet(bullet, owner) {
+            const bulletSpeed = GAME_CONFIG.bulletSpeed;
+            const gameWidth = document.querySelector('.game-container').clientWidth;
+            const target = owner === 'player' ? ai : player;
+
+            const moveInterval = setInterval(() => {
+                if (!gameRunning) {
+                    clearInterval(moveInterval);
+                    bullet.remove();
+                    return;
+                }
+
+                // 获取当前位置
+                let left = parseInt(bullet.style.left) || 0;
+
+                // 移动弹幕
+                if (owner === 'player') {
+                    left -= bulletSpeed; // 玩家弹幕向左
+                } else {
+                    left += bulletSpeed; // AI弹幕向右
+                }
+                bullet.style.left = left + 'px';
+
+                // 边界检测：超出屏幕移除弹幕
+                if (left < -50 || left > gameWidth + 50) {
+                    clearInterval(moveInterval);
+                    bullet.remove();
+                    return;
+                }
+
+                // 碰撞检测（矩形碰撞）
+                const bulletRect = bullet.getBoundingClientRect();
+                const targetRect = target.element.getBoundingClientRect();
+                
+                if (bulletRect.right > targetRect.left && bulletRect.left < targetRect.right && bulletRect.bottom > targetRect.top && bulletRect.top < targetRect.bottom ) {
+                    // 碰撞成功：扣血、移除弹幕
+                    clearInterval(moveInterval);
+                    
+                    // 添加命中效果
+                    bullet.style.animation = 'bulletHit 0.3s ease';
+                    setTimeout(() => {
+                        bullet.remove();
+                    }, 300);
+                    
+                    target.hp -= GAME_CONFIG.bulletDamage;
+                    if (target.hp < 0) target.hp = 0;
+                    
+                    // 更新血量条
+                    updateHpBar(owner === 'player' ? 'ai' : 'player', target.hp);
+                    
+                    // 检测游戏结束
+                    checkGameOver();
+                }
+            }, 16); // 约60帧/秒
+        }
+
+        // 4. 更新血量条
+        function updateHpBar(type, hp) {
+            const hpBar = document.querySelector(`.${type}-hp-bar`);
+            const hpText = document.querySelector(`.${type}-hp-container .hp-text`);
+            const maxHp = type === 'player' ? player.maxHp : ai.maxHp;
+            const hpPercent = (hp / maxHp) * 100;
+
+            hpBar.style.width = `${hpPercent}%`;
+            const typeText = type === 'player' ? '虾虾' : '鸥';
+            hpText.textContent = `${typeText}: ${Math.max(0, hp)} HP`;
+        }
+
+        // 5. 检测游戏结束
+        function checkGameOver() {
+            if (!gameRunning) return;
+
+            let gameOverTitle = '';
+            let gameOverMessage = '';
+            
+            if (player.hp <= 0) {
+                gameOverTitle = '你失败了！';
+                gameOverMessage = '哦不，鸥抓走了虾虾！';
+                gameRunning = false;
+            } else if (ai.hp <= 0) {
+                gameOverTitle = '你胜利了！';
+                gameOverMessage = '太棒了，虾虾战胜了鸥！';
+                gameRunning = false;
+            }
+
+            if (!gameRunning) {
+                // 停止所有定时器
+                clearAllIntervals();
+                
+                // 显示游戏结束弹窗
+                document.getElementById('gameOverTitle').textContent = gameOverTitle;
+                document.getElementById('gameOverMessage').textContent = gameOverMessage;
+                showPopup('gameOverPopup');
+            }
+        }
+
+        // ===================== 事件监听 =====================
+        // 首页按钮
+        document.getElementById('startGame').addEventListener('click', () => {
+            // 显示难度选择弹窗
+            showPopup('difficultyPopup');
+        });
+        
+        // 难度选择按钮
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const difficulty = btn.dataset.difficulty;
+                hidePopup('difficultyPopup');
+                initGame(difficulty);
+            });
+        });
+        
+        // 取消难度选择按钮
+        document.getElementById('cancelDifficulty').addEventListener('click', () => {
+            hidePopup('difficultyPopup');
+        });
+		
+        document.getElementById('closeRules').addEventListener('click', () => {
+            hidePopup('rulesPopup');
+            // 显示难度选择弹窗
+            showPopup('difficultyPopup');
+        });
+        
+        document.getElementById('restartGame').addEventListener('click', () => {
+            hidePopup('gameOverPopup');
+            // 使用当前难度重新开始
+            initGame(currentDifficulty);
+        });
+        
+        document.getElementById('showRules').addEventListener('click', () => {
+            showPopup('rulesPopup');
+        });
+        
+        // 返回按钮
+        document.getElementById('backToHome').addEventListener('click', () => {
+            gameRunning = false;
+            clearAllIntervals();
+            showPage('homePage');
+        });
+		
+		// 交换按钮
+		document.getElementById('swapControls').addEventListener('click', () => {
+		    document.getElementById('mobile-controls').classList.toggle('row-reverse');
+		});
+        
+        document.getElementById('backFromRules').addEventListener('click', () => {
+            hidePopup('rulesPopup');
+        });
+        
+        document.getElementById('returnHome').addEventListener('click', () => {
+            hidePopup('gameOverPopup');
+            gameRunning = false;
+            clearAllIntervals();
+            showPage('homePage');
+        });
+        
+        document.addEventListener('touchmove', function (e) {
+            if (e.target.classList.contains('control-btn')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.querySelector('.character-btn[data-character="ou"]').classList.add('selected');
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 全局防止长按菜单
+            document.addEventListener('contextmenu', function(e) {
+                if (e.target.classList.contains('control-btn') || 
+                    e.target.classList.contains('game-btn') ||
+                    e.target.closest('.control-btn')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // 防止文本选择
+            document.addEventListener('selectstart', function(e) {
+                if (e.target.classList.contains('control-btn') || 
+                    e.target.classList.contains('game-btn') ||
+                    e.target.closest('.control-btn')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // 防止拖拽（在某些浏览器中会触发复制）
+            document.addEventListener('dragstart', function(e) {
+                if (e.target.classList.contains('control-btn') || 
+                    e.target.classList.contains('game-btn') ||
+                    e.target.closest('.control-btn')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        });
+        
+    </script>
+</body>
+</html>

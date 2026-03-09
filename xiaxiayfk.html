@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="format-detection" content="telephone=no">
+    <title>跳一跳 | 益智游戏</title>
+    <link href="css/main.css" type="text/css" rel="stylesheet"/>
+    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+</head>
+<body class="bg">
+    <div class="game-wrapper">
+        <!-- 首页 -->
+        <div id="homePage" class="game-page active">
+            <div class="puzzle-bg"></div>
+            <div class="home-content">
+                <h1 class="game-title">跳一跳</h1>
+                <button class="start-btn" id="startBtn">开始游戏</button>
+                <div class="instructions">
+                    <h3>游戏说明</h3>
+                    <p><strong>长按屏幕蓄力，松开跳跃！</strong></p>
+                    <p>控制人物从柱子跳到柱子上</p>
+                    <p>准确跳到柱子中心得分更高</p>
+                    <p>错过柱子或掉落则游戏结束</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏页 -->
+        <div id="gamePage" class="game-page">
+            <!-- 分数显示 -->
+            <div id="scoreDisplay">0</div>
+            <div id="bestScoreDisplay">最高分: 0</div>
+            
+            <!-- 悬浮暂停按钮 -->
+            <button id="pauseFloatingBtn" title="暂停">⏸️</button>
+            
+            <div class="game-content">
+                <div id="gameCanvasContainer">
+                    <canvas id="gameCanvas"></canvas>
+                    
+                    <!-- 蓄力指示器 -->
+                    <div id="powerIndicator">
+                        <div id="powerFill"></div>
+                    </div>
+                </div>
+                
+                <!-- 游戏结束弹窗 -->
+                <div class="game-over-popup" id="gameOverPopup">
+                    <h2 class="game-over-title">游戏结束</h2>
+                    <div class="score-display">最终得分: <span id="finalScore">0</span></div>
+                    <div class="best-score">最高分: <span id="finalBestScore">0</span></div>
+                    <div class="game-over-buttons">
+                        <button class="game-over-btn restart" id="restartGameBtn">再玩一次</button>
+                        <button class="game-over-btn home" id="backToHomeBtn">返回首页</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 暂停弹窗 -->
+        <div class="popup-overlay" id="pausePopup">
+            <div class="popup-content">
+                <h3>游戏暂停</h3>
+                <p>当前分数: <span id="pauseScore">0</span></p>
+                <div class="popup-buttons">
+                    <button class="popup-btn continue" id="continueBtn">继续游戏</button>
+                    <button class="popup-btn home" id="pauseHomeBtn">返回首页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 游戏状态变量
+            let game = {
+                canvas: null,
+                ctx: null,
+                isPlaying: false,
+                isPaused: false,
+                score: 0,
+                bestScore: parseInt(localStorage.getItem('jumpBestScore')) || 0,
+                pillars: [], // 柱子数组
+                currentPillarIndex: 0, // 当前所在的柱子索引
+                player: {
+                    x: 0,
+                    y: 0,
+                    width: 40, // 人物宽度
+                    height: 60, // 人物高度
+                    jumping: false,
+                    velocityY: 0,
+                    velocityX: 0,
+                    rotation: 0, // 跳跃时的旋转角度
+                    scale: 1 // 跳跃时的缩放
+                },
+                isCharging: false,
+                chargeStartTime: 0,
+                chargePower: 0,
+                gameWidth: 0,
+                gameHeight: 0,
+                animationId: null,
+                gravity: 0.5,
+                // 图片资源
+                playerImg: null,
+                pillarImg: null,
+                // 地面高度
+                groundY: 0
+            };
+            
+            // DOM元素
+            const homePage = document.getElementById('homePage');
+            const gamePage = document.getElementById('gamePage');
+            const startBtn = document.getElementById('startBtn');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const bestScoreDisplay = document.getElementById('bestScoreDisplay');
+            const gameCanvas = document.getElementById('gameCanvas');
+            const gameCanvasContainer = document.getElementById('gameCanvasContainer');
+            const powerIndicator = document.getElementById('powerIndicator');
+            const powerFill = document.getElementById('powerFill');
+            const pauseFloatingBtn = document.getElementById('pauseFloatingBtn');
+            const pausePopup = document.getElementById('pausePopup');
+            const continueBtn = document.getElementById('continueBtn');
+            const pauseHomeBtn = document.getElementById('pauseHomeBtn');
+            const gameOverPopup = document.getElementById('gameOverPopup');
+            const finalScoreElement = document.getElementById('finalScore');
+            const finalBestScoreElement = document.getElementById('finalBestScore');
+            const restartGameBtn = document.getElementById('restartGameBtn');
+            const backToHomeBtn = document.getElementById('backToHomeBtn');
+            const pauseScoreElement = document.getElementById('pauseScore');
+            
+            // 创建图片资源（不使用外部文件）
+            function createImages() {
+                // 创建人物图片
+                const playerCanvas = document.createElement('canvas');
+                playerCanvas.width = 100;
+                playerCanvas.height = 150;
+                const playerCtx = playerCanvas.getContext('2d');
+                
+                // 绘制人物
+                // 头部
+                playerCtx.beginPath();
+                playerCtx.arc(50, 40, 25, 0, Math.PI * 2);
+                playerCtx.fillStyle = '#ffd3b6';
+                playerCtx.fill();
+                
+                // 身体
+                playerCtx.fillStyle = '#4a8fe7';
+                playerCtx.fillRect(35, 65, 30, 60);
+                
+                // 眼睛
+                playerCtx.fillStyle = 'white';
+                playerCtx.beginPath();
+                playerCtx.arc(43, 35, 6, 0, Math.PI * 2);
+                playerCtx.arc(57, 35, 6, 0, Math.PI * 2);
+                playerCtx.fill();
+                
+                playerCtx.fillStyle = 'black';
+                playerCtx.beginPath();
+                playerCtx.arc(43, 35, 3, 0, Math.PI * 2);
+                playerCtx.arc(57, 35, 3, 0, Math.PI * 2);
+                playerCtx.fill();
+                
+                // 嘴巴
+                playerCtx.beginPath();
+                playerCtx.arc(50, 50, 10, 0.2, 0.8 * Math.PI);
+                playerCtx.strokeStyle = '#ff8b94';
+                playerCtx.lineWidth = 2;
+                playerCtx.stroke();
+                
+                // 手臂
+                playerCtx.fillStyle = '#4a8fe7';
+                playerCtx.fillRect(25, 70, 10, 40);
+                playerCtx.fillRect(65, 70, 10, 40);
+                
+                // 腿
+                playerCtx.fillRect(40, 125, 10, 25);
+                playerCtx.fillRect(50, 125, 10, 25);
+                
+                game.playerImg = playerCanvas;
+                
+                // 创建柱子图片
+                const pillarCanvas = document.createElement('canvas');
+                pillarCanvas.width = 100;
+                pillarCanvas.height = 200;
+                const pillarCtx = pillarCanvas.getContext('2d');
+                
+                // 绘制柱子
+                const pillarGradient = pillarCtx.createLinearGradient(0, 0, 0, 200);
+                pillarGradient.addColorStop(0, '#8dd7c7');
+                pillarGradient.addColorStop(1, '#4a8fe7');
+                pillarCtx.fillStyle = pillarGradient;
+                pillarCtx.fillRect(10, 0, 80, 200);
+                
+                // 柱子顶部
+                pillarCtx.fillStyle = '#a8e6cf';
+                pillarCtx.fillRect(0, 0, 100, 15);
+                
+                // 柱子底部
+                pillarCtx.fillStyle = '#4a8fe7';
+                pillarCtx.fillRect(5, 185, 90, 15);
+                
+                // 柱子纹理
+                pillarCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                pillarCtx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    pillarCtx.beginPath();
+                    pillarCtx.moveTo(15, 20 + i * 20);
+                    pillarCtx.lineTo(85, 20 + i * 20);
+                    pillarCtx.stroke();
+                }
+                
+                game.pillarImg = pillarCanvas;
+            }
+            
+            // 初始化游戏
+            function initGame() {
+                game.canvas = gameCanvas;
+                game.ctx = game.canvas.getContext('2d');
+                
+                // 创建图片资源
+                createImages();
+                
+                // 设置画布大小
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                
+                // 初始化游戏数据
+                resetGame();
+                
+                // 绘制初始画面
+                draw();
+            }
+            
+            // 重置画布大小
+            function resizeCanvas() {
+                game.gameWidth = window.innerWidth;
+                game.gameHeight = window.innerHeight;
+                game.groundY = game.gameHeight * 0.85; // 地面位置
+                
+                game.canvas.width = game.gameWidth;
+                game.canvas.height = game.gameHeight;
+                
+                // 如果游戏正在进行中，重新绘制
+                if (game.isPlaying) {
+                    draw();
+                }
+            }
+            
+            // 重置游戏状态
+            function resetGame() {
+                game.score = 0;
+                game.pillars = [];
+                game.currentPillarIndex = 0;
+                game.isCharging = false;
+                game.chargePower = 0;
+                
+                // 创建初始柱子
+                createPillars();
+                
+                // 初始化玩家位置（在第一个柱子上）
+                const firstPillar = game.pillars[0];
+                game.player.x = firstPillar.x + firstPillar.width / 2;
+                game.player.y = firstPillar.y - game.player.height;
+                game.player.jumping = false;
+                game.player.velocityY = 0;
+                game.player.velocityX = 0;
+                game.player.rotation = 0;
+                game.player.scale = 1;
+                
+                // 更新UI
+                updateUI();
+                
+                // 隐藏游戏结束弹窗
+                gameOverPopup.style.display = 'none';
+                powerIndicator.style.display = 'none';
+            }
+            
+            // 创建柱子
+            function createPillars() {
+                game.pillars = [];
+                
+                // 创建第一个柱子（起始柱子）
+                const firstPillar = {
+                    x: game.gameWidth * 0.4,
+                    y: game.groundY - getRandomHeight(100, 180), // 随机高度
+                    width: getRandomWidth(60, 90), // 随机宽度
+                    height: getRandomHeight(100, 180), // 随机高度
+                    special: false,
+                    landed: true
+                };
+                game.pillars.push(firstPillar);
+                
+                // 创建后续柱子
+                for (let i = 1; i < 10; i++) {
+                    const prevPillar = game.pillars[i - 1];
+                    
+                    // 随机生成下一个柱子的位置
+                    const minDistance = 120;
+                    const maxDistance = 250;
+                    const distance = minDistance + Math.random() * (maxDistance - minDistance);
+                    
+                    // 随机方向（左或右）
+                    const direction = Math.random() > 0.5 ? 1 : -1;
+                    
+                    // 随机高度变化
+                    const heightChange = getRandomHeight(80, 160);
+                    
+                    // 随机柱子宽度
+                    const width = getRandomWidth(50, 80);
+                    
+                    // 计算新柱子位置
+                    const x = prevPillar.x + direction * distance;
+                    const y = game.groundY - heightChange;
+                    
+                    // 确保柱子不会超出画布
+                    const clampedX = Math.max(20, Math.min(x, game.gameWidth - width - 20));
+                    
+                    // 随机决定是否是特殊柱子（有额外加分）
+                    const isSpecial = Math.random() > 0.7;
+                    
+                    game.pillars.push({
+                        x: clampedX,
+                        y: y,
+                        width: width,
+                        height: heightChange,
+                        special: isSpecial,
+                        landed: false
+                    });
+                }
+            }
+            
+            // 获取随机高度
+            function getRandomHeight(min, max) {
+                return min + Math.random() * (max - min);
+            }
+            
+            // 获取随机宽度
+            function getRandomWidth(min, max) {
+                return min + Math.random() * (max - min);
+            }
+            
+            // 绘制游戏
+            function draw() {
+                const ctx = game.ctx;
+                
+                // 清除画布
+                ctx.clearRect(0, 0, game.gameWidth, game.gameHeight);
+                
+                // 绘制海洋背景
+                const gradient = ctx.createLinearGradient(0, 0, 0, game.gameHeight);
+                gradient.addColorStop(0, '#1a2980');
+                gradient.addColorStop(1, '#26d0ce');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, game.gameWidth, game.gameHeight);
+                
+                // 绘制海平面
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                for (let i = 0; i < 20; i++) {
+                    const waveHeight = 5 + Math.sin(Date.now() / 1000 + i) * 3;
+                    ctx.fillRect(0, game.groundY + i, game.gameWidth, 1);
+                }
+                
+                // 绘制地面（海底）
+                ctx.fillStyle = 'rgba(74, 143, 231, 0.3)';
+                ctx.fillRect(0, game.groundY, game.gameWidth, game.gameHeight - game.groundY);
+                
+                // 绘制柱子
+                game.pillars.forEach((pillar, index) => {
+                    // 绘制柱子图片
+                    if (game.pillarImg) {
+                        // 调整柱子图片以适应柱子的宽度和高度
+                        ctx.drawImage(
+                            game.pillarImg,
+                            pillar.x,
+                            pillar.y,
+                            pillar.width,
+                            pillar.height
+                        );
+                    }
+                    
+                    // 如果是特殊柱子，绘制特殊效果
+                    if (pillar.special) {
+                        // 绘制发光效果
+                        ctx.shadowColor = '#ffeb3b';
+                        ctx.shadowBlur = 15;
+                        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+                        ctx.fillRect(pillar.x - 10, pillar.y - 10, pillar.width + 20, pillar.height + 20);
+                        ctx.shadowBlur = 0;
+                    }
+                    
+                    // 如果是当前柱子，绘制高亮效果
+                    if (index === game.currentPillarIndex && !game.player.jumping) {
+                        ctx.strokeStyle = '#ffeb3b';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(pillar.x - 3, pillar.y - 3, pillar.width + 6, pillar.height + 6);
+                    }
+                });
+                
+                // 绘制玩家角色
+                ctx.save();
+                
+                // 设置玩家位置和变换
+                ctx.translate(game.player.x, game.player.y);
+                
+                // 如果正在跳跃，添加旋转和缩放效果
+                if (game.player.jumping) {
+                    ctx.rotate(game.player.rotation);
+                    ctx.scale(game.player.scale, game.player.scale);
+                }
+                
+                // 绘制人物图片
+                if (game.playerImg) {
+                    // 绘制人物图片，以中心为基准
+                    ctx.drawImage(
+                        game.playerImg,
+                        -game.player.width / 2,
+                        -game.player.height,
+                        game.player.width,
+                        game.player.height
+                    );
+                }
+                
+                ctx.restore();
+                
+                // 如果正在蓄力，绘制蓄力指示器
+                if (game.isCharging) {
+                    // 蓄力圈
+                    ctx.beginPath();
+                    ctx.arc(game.player.x, game.player.y - 50, 20, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#4a8fe7';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    
+                    // 蓄力填充
+                    ctx.beginPath();
+                    ctx.arc(game.player.x, game.player.y - 50, 18, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * game.chargePower / 100));
+                    ctx.strokeStyle = '#ff8b94';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+                
+                // 如果正在跳跃，绘制跳跃轨迹虚线
+                if (game.player.jumping) {
+                    const nextPillar = game.pillars[game.currentPillarIndex + 1];
+                    if (nextPillar) {
+                        ctx.beginPath();
+                        ctx.setLineDash([5, 5]);
+                        ctx.moveTo(game.player.x, game.player.y);
+                        ctx.lineTo(nextPillar.x + nextPillar.width / 2, nextPillar.y);
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+            }
+            
+            // 更新游戏逻辑
+            function update() {
+                if (!game.isPlaying || game.isPaused) return;
+                
+                // 更新玩家位置（如果正在跳跃）
+                if (game.player.jumping) {
+                    game.player.x += game.player.velocityX;
+                    game.player.y += game.player.velocityY;
+                    
+                    // 应用重力
+                    game.player.velocityY += game.gravity;
+                    
+                    // 跳跃时的旋转效果
+                    game.player.rotation += 0.05;
+                    game.player.scale = 0.9 + Math.sin(Date.now() / 100) * 0.1;
+                    
+                    // 检查是否落地
+                    const nextPillar = game.pillars[game.currentPillarIndex + 1];
+                    if (nextPillar && checkLanding(nextPillar)) {
+                        // 成功跳到下一个柱子
+                        landOnPillar(nextPillar);
+                    }
+                    
+                    // 检查是否掉出屏幕或掉到地面上
+                    if (game.player.y > game.gameHeight + 50 || 
+                        (game.player.y > game.groundY - 20)) {
+                        gameOver();
+                    }
+                }
+                
+                // 更新蓄力条
+                if (game.isCharging) {
+                    const chargeTime = Date.now() - game.chargeStartTime;
+                    game.chargePower = Math.min(100, chargeTime / 10);
+                    powerFill.style.width = game.chargePower + '%';
+                }
+                
+                // 重绘画布
+                draw();
+                
+                // 继续动画循环
+                game.animationId = requestAnimationFrame(update);
+            }
+            
+            // 检查是否落在柱子上
+            function checkLanding(pillar) {
+                const playerBottom = game.player.y;
+                const playerCenterX = game.player.x;
+                
+                // 检查玩家是否在柱子顶部上方且正在下落
+                if (playerBottom >= pillar.y - 10 && 
+                    playerBottom <= pillar.y + 10 && 
+                    game.player.velocityY > 0 &&
+                    playerCenterX >= pillar.x && 
+                    playerCenterX <= pillar.x + pillar.width) {
+                    return true;
+                }
+                return false;
+            }
+            
+            // 落在柱子上
+            function landOnPillar(pillar) {
+                // 停止跳跃
+                game.player.jumping = false;
+                game.player.velocityY = 0;
+                game.player.velocityX = 0;
+                game.player.rotation = 0;
+                game.player.scale = 1;
+                
+                // 将玩家放置在柱子上
+                game.player.y = pillar.y;
+                game.player.x = pillar.x + pillar.width / 2;
+                
+                // 更新当前柱子索引
+                game.currentPillarIndex++;
+                
+                // 标记柱子为已着陆
+                pillar.landed = true;
+                
+                // 计算得分
+                calculateScore(pillar);
+                
+                // 如果到达最后一个柱子，添加新柱子
+                if (game.currentPillarIndex >= game.pillars.length - 3) {
+                    addNewPillar();
+                }
+                
+                // 更新UI
+                updateUI();
+            }
+            
+            // 计算得分
+            function calculateScore(pillar) {
+                const playerCenterX = game.player.x;
+                const pillarCenterX = pillar.x + pillar.width / 2;
+                const distanceFromCenter = Math.abs(playerCenterX - pillarCenterX);
+                
+                // 基础得分
+                let points = 10;
+                
+                // 根据着陆精度加分
+                if (distanceFromCenter < pillar.width / 4) {
+                    points += 20;
+                }
+                
+                // 特殊柱子额外加分
+                if (pillar.special) {
+                    points += 30;
+                }
+                
+                // 更新分数
+                game.score += points;
+                
+                // 更新最高分
+                if (game.score > game.bestScore) {
+                    game.bestScore = game.score;
+                    localStorage.setItem('jumpBestScore', game.bestScore);
+                }
+            }
+            
+            // 添加新柱子
+            function addNewPillar() {
+                const lastPillar = game.pillars[game.pillars.length - 1];
+                
+                // 随机生成下一个柱子的位置
+                const minDistance = 120;
+                const maxDistance = 250;
+                const distance = minDistance + Math.random() * (maxDistance - minDistance);
+                
+                // 随机方向（左或右）
+                const direction = Math.random() > 0.5 ? 1 : -1;
+                
+                // 随机高度变化
+                const heightChange = getRandomHeight(80, 160);
+                
+                // 随机柱子宽度
+                const width = getRandomWidth(50, 80);
+                
+                // 计算新柱子位置
+                const x = lastPillar.x + direction * distance;
+                const y = game.groundY - heightChange;
+                
+                // 确保柱子不会超出画布
+                const clampedX = Math.max(20, Math.min(x, game.gameWidth - width - 20));
+                
+                // 随机决定是否是特殊柱子
+                const isSpecial = Math.random() > 0.7;
+                
+                game.pillars.push({
+                    x: clampedX,
+                    y: y,
+                    width: width,
+                    height: heightChange,
+                    special: isSpecial,
+                    landed: false
+                });
+            }
+            
+            // 开始跳跃
+            function startJump() {
+                if (game.player.jumping || !game.isPlaying) return;
+                
+                // 获取下一个柱子
+                const nextPillar = game.pillars[game.currentPillarIndex + 1];
+                if (!nextPillar) return;
+                
+                // 计算跳跃力量
+                const power = game.chargePower;
+                
+                // 计算目标位置（下一个柱子的中间顶部）
+                const targetX = nextPillar.x + nextPillar.width / 2;
+                const targetY = nextPillar.y;
+                
+                // 计算玩家当前位置
+                const currentX = game.player.x;
+                const currentY = game.player.y;
+                
+                // 计算距离
+                const distanceX = targetX - currentX;
+                const distanceY = targetY - currentY;
+                
+                // 根据蓄力计算跳跃速度
+                const maxPower = 100;
+                const powerRatio = power / maxPower;
+                
+                // 基础跳跃速度
+                const baseSpeed = 8;
+                const speed = baseSpeed + powerRatio * 12;
+                
+                // 计算所需速度
+                const time = Math.sqrt(Math.abs(distanceY) / 4.9); // 粗略估算时间
+                const velocityX = distanceX / time;
+                const velocityY = -Math.sqrt(2 * 9.8 * Math.abs(distanceY)) * (1 - powerRatio * 0.3);
+                
+                // 设置玩家跳跃状态
+                game.player.jumping = true;
+                game.player.velocityX = velocityX * (speed / 15);
+                game.player.velocityY = velocityY * (speed / 15);
+                
+                // 重置蓄力
+                game.isCharging = false;
+                powerIndicator.style.display = 'none';
+                game.chargePower = 0;
+            }
+            
+            // 游戏结束
+            function gameOver() {
+                game.isPlaying = false;
+                
+                // 取消动画循环
+                if (game.animationId) {
+                    cancelAnimationFrame(game.animationId);
+                    game.animationId = null;
+                }
+                
+                // 显示最终分数
+                finalScoreElement.textContent = game.score;
+                finalBestScoreElement.textContent = game.bestScore;
+                
+                // 显示游戏结束弹窗
+                gameOverPopup.style.display = 'block';
+            }
+            
+            // 更新UI显示
+            function updateUI() {
+                scoreDisplay.textContent = game.score;
+                bestScoreDisplay.textContent = `最高分: ${game.bestScore}`;
+                pauseScoreElement.textContent = game.score;
+            }
+            
+            // 开始游戏
+            function startGame() {
+                // 切换到游戏页
+                homePage.classList.remove('active');
+                gamePage.classList.add('active');
+                
+                // 重置游戏
+                resetGame();
+                
+                // 开始游戏循环
+                game.isPlaying = true;
+                game.isPaused = false;
+                
+                // 开始更新循环
+                update();
+            }
+            
+            // 暂停游戏
+            function pauseGame() {
+                if (!game.isPlaying) return;
+                
+                game.isPaused = true;
+                pausePopup.style.display = 'flex';
+                
+                // 取消动画循环
+                if (game.animationId) {
+                    cancelAnimationFrame(game.animationId);
+                    game.animationId = null;
+                }
+            }
+            
+            // 继续游戏
+            function continueGame() {
+                game.isPaused = false;
+                pausePopup.style.display = 'none';
+                
+                // 重新开始更新循环
+                if (game.isPlaying) {
+                    update();
+                }
+            }
+            
+            // 事件监听器
+            startBtn.addEventListener('click', startGame);
+            
+            // 悬浮暂停按钮
+            pauseFloatingBtn.addEventListener('click', pauseGame);
+            
+            // 暂停弹窗按钮
+            continueBtn.addEventListener('click', continueGame);
+            pauseHomeBtn.addEventListener('click', function() {
+                pausePopup.style.display = 'none';
+                gamePage.classList.remove('active');
+                homePage.classList.add('active');
+                game.isPlaying = false;
+                game.isPaused = false;
+            });
+            
+            // 游戏结束弹窗按钮
+            restartGameBtn.addEventListener('click', function() {
+                gameOverPopup.style.display = 'none';
+                resetGame();
+                game.isPlaying = true;
+                update();
+            });
+            
+            backToHomeBtn.addEventListener('click', function() {
+                gameOverPopup.style.display = 'none';
+                gamePage.classList.remove('active');
+                homePage.classList.add('active');
+                game.isPlaying = false;
+                game.isPaused = false;
+            });
+            
+            // 触摸/鼠标事件 - 开始蓄力
+            gameCanvas.addEventListener('mousedown', startCharge);
+            gameCanvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                startCharge();
+            });
+            
+            // 触摸/鼠标事件 - 结束蓄力并跳跃
+            gameCanvas.addEventListener('mouseup', endCharge);
+            gameCanvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                endCharge();
+            });
+            
+            // 防止触摸时滚动页面
+            gameCanvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+            
+            function startCharge() {
+                if (!game.isPlaying || game.isPaused || game.player.jumping) return;
+                
+                game.isCharging = true;
+                game.chargeStartTime = Date.now();
+                powerIndicator.style.display = 'block';
+                powerFill.style.width = '0%';
+            }
+            
+            function endCharge() {
+                if (!game.isCharging) return;
+                
+                startJump();
+            }
+            
+            // 键盘控制（空格键跳跃）
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    
+                    if (!game.isPlaying || game.isPaused) return;
+                    
+                    if (!game.isCharging && !game.player.jumping) {
+                        startCharge();
+                    }
+                }
+                
+                // ESC键暂停
+                if (e.code === 'Escape') {
+                    if (game.isPlaying) {
+                        if (game.isPaused) {
+                            continueGame();
+                        } else {
+                            pauseGame();
+                        }
+                    }
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    
+                    if (game.isCharging) {
+                        endCharge();
+                    }
+                }
+            });
+            
+            // 初始化游戏
+            initGame();
+        });
+    </script>
+</body>
+</html>

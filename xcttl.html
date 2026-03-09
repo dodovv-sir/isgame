@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>接金币游戏</title>
+    <link href="css/main.css" type="text/css" rel="stylesheet"/>
+    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</head>
+<body class="bg">
+    <div class="puzzle-bg"></div>
+    <div class="game_fen">
+        <div class="cont">还剩 <span id="m">30</span>s</div>
+    </div>
+    <div class="game_time">
+        <div class="cont"><span id="f">0</span></div>
+    </div>
+    
+    <div id="box">
+        <canvas id="canvas" style="display: block;"></canvas>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div class="game-overlay" id="gameOverlay">
+        <div class="result-box">
+            <div class="result-title" id="resultTitle">🎉 游戏结束！ 🎉</div>
+            <div class="result-score">最终得分: <span id="finalScore">0</span></div>
+            <div class="result-message" id="resultMessage"></div>
+            <button class="retry-button" onclick="restartGame()">重新开始</button>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // 游戏配置
+        var B = 0.56;
+        var canvasW = window.innerWidth;
+        var canvasH = canvasW / B;
+        var canvasObj = $('#canvas');
+        var ca = document.getElementById("canvas");
+        var ctx = ca.getContext("2d");
+        
+        // 物品分数配置
+        var ITEM_SCORES = {
+            0: { score: 0.5, operation: 'half', name: '减半' },  // 分数减半
+            1: { score: 1, operation: 'add', name: '+1分' },     // +1分
+            2: { score: 11, operation: 'add', name: '+11分' },   // +11分
+            3: { score: 41, operation: 'add', name: '+41分' }    // +41分
+        };
+
+        // 游戏变量
+        var gameItems = [];
+        var score = 0;
+        var gameStartTime = new Date();
+        var gameTime = 30;
+        var remainingTime = gameTime;
+        var gameInterval = null;
+        var frameCount = 0;
+        
+        // 分数效果数组
+        var scoreEffects = [];
+        
+        // 游戏状态
+        var gameRunning = true;
+
+        // 图片资源
+        var player = new Image();
+        player.src = "img/isa.png";
+        var playerWidth = 345 * B;
+        var playerHeight = 554 * B;
+
+        // 物品图片数组
+        var itemImages = [];
+        for (var i = 0; i <= 3; i++) {
+            var img = new Image();
+            img.src = "img/" + i + ".png";
+            itemImages[i] = img;
+        }
+
+        // 渐变背景
+        var gradientBackground = null;
+        var particles = [];
+
+        // 初始化粒子
+        function initParticles() {
+            particles = [];
+            for (var i = 0; i < 30; i++) {
+                particles.push({
+                    x: Math.random() * canvasW,
+                    y: Math.random() * canvasH,
+                    radius: Math.random() * 2 + 1,
+                    speed: Math.random() * 0.5 + 0.2,
+                    color: 'rgba(255, 255, 255, 0.5)'
+                });
+            }
+        }
+
+        // 物品对象构造函数
+        function GameItem() {
+            this.x = 0;
+            this.y = 0;
+            this.type = 0; // 0-3对应图片编号
+            this.image = null;
+            this.width = 120 * 0.6;
+            this.height = 120 * 0.6;
+        }
+
+        // 初始化画布
+        function initCanvas() {
+            // 调整画布高度以适应屏幕
+            if (canvasH > window.innerHeight) {
+                canvasH = window.innerHeight;
+            } else {
+                canvasH = window.innerHeight;
+            }
+            
+            // 设置画布尺寸
+            canvasObj.css('margin-top', (window.innerHeight - canvasH) / 2);
+            canvasObj.attr('width', canvasW);
+            canvasObj.attr('height', canvasH);
+            
+            // 创建渐变背景
+            createGradient();
+            
+            // 初始化粒子
+            initParticles();
+        }
+
+        // 创建渐变背景
+        function createGradient() {
+            gradientBackground = ctx.createLinearGradient(0, 0, canvasW, canvasH);
+            gradientBackground.addColorStop(0, '#667eea');
+            gradientBackground.addColorStop(1, '#764ba2');
+        }
+
+        // 绘制渐变背景
+        function drawBackground() {
+            // 绘制渐变背景
+            ctx.fillStyle = gradientBackground;
+            ctx.fillRect(0, 0, canvasW, canvasH);
+            
+            // 绘制粒子
+            drawParticles();
+        }
+
+        // 绘制粒子
+        function drawParticles() {
+            for (var i = 0; i < particles.length; i++) {
+                var p = particles[i];
+                
+                // 更新粒子位置
+                p.y += p.speed;
+                if (p.y > canvasH) {
+                    p.y = 0;
+                    p.x = Math.random() * canvasW;
+                }
+                
+                // 绘制粒子
+                ctx.beginPath();
+                ctx.fillStyle = p.color;
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 玩家对象
+        var playerSprite = {
+            x: 0,
+            y: 0,
+            width: playerWidth,
+            height: playerHeight,
+            image: player
+        };
+
+        // 初始化玩家位置
+        function initPlayer() {
+            playerSprite.x = (canvasW - playerWidth) / 2;
+            playerSprite.y = canvasH - playerHeight;
+        }
+
+        // 更新游戏时间
+        function updateGameTime() {
+            if (!gameRunning) return;
+            
+            var nowTime = new Date();
+            var elapsedSeconds = Math.floor((nowTime.getTime() - gameStartTime.getTime()) / 1000);
+            remainingTime = Math.max(0, gameTime - elapsedSeconds);
+            document.getElementById('m').innerHTML = remainingTime;
+        }
+
+        // 根据分数调整物品生成概率
+        function getItemProbability(score) {
+            // 随着分数增加，减少0.png（减半物品）的出现概率
+            var baseProbability = 0.15; // 基础概率15%
+            var reductionFactor = Math.min(score * 0.001, 0.1); // 每100分减少1%，最多减少10%
+            return Math.max(0.05, baseProbability - reductionFactor); // 最低保持5%的概率
+        }
+
+        // 生成物品
+        function generateItems() {
+            if (!gameRunning) return;
+            
+            frameCount++;
+            
+            // 根据剩余时间控制生成频率
+            var spawnRate = getSpawnRate();
+            
+            if (frameCount % spawnRate === 0) {
+                var itemsPerSpawn = 2;
+                var range = canvasW - 60 * B;
+                var zeroItemProbability = getItemProbability(score); // 根据当前分数动态调整0.png概率
+                
+                for (var j = 0; j < itemsPerSpawn; j++) {
+                    var newItem = new GameItem();
+                    
+                    // 设置随机位置
+                    newItem.x = Math.round(Math.random() * range);
+                    
+                    // 确保物品间有最小距离
+                    if (j > 0 && gameItems.length > 0) {
+                        var lastItem = gameItems[gameItems.length - 1];
+                        while (Math.abs(newItem.x - lastItem.x) < 30) {
+                            newItem.x = Math.round(Math.random() * range);
+                        }
+                    }
+                    
+                    // 随机选择物品类型
+                    // 调整概率：1.png和3.png较少，2.png较多，0.png根据分数动态调整
+                    var rand = Math.random() * 100;
+                    
+                    if (rand < zeroItemProbability * 100) { // 0.png（减半物品）- 根据分数动态调整
+                        newItem.type = 0;
+                    } else if (rand < (zeroItemProbability * 100) + 10) { // 1.png - 10% 概率
+                        newItem.type = 1;
+                    } else if (rand < (zeroItemProbability * 100) + 15) { // 3.png - 5% 概率
+                        newItem.type = 3;
+                    } else { // 2.png - 剩余概率
+                        newItem.type = 2;
+                    }
+                    
+                    newItem.image = itemImages[newItem.type];
+                    newItem.y = -Math.round(Math.random() * 300);
+                    
+                    gameItems.push(newItem);
+                }
+            }
+        }
+
+        // 根据剩余时间获取生成速率
+        function getSpawnRate() {
+            if (remainingTime > 20) {
+                return 10;
+            } else if (remainingTime > 10) {
+                return 5;
+            } else if (remainingTime > 5) {
+                return 5;
+            } else {
+                return 5;
+            }
+        }
+
+        // 获取下落速度
+        function getFallSpeed() {
+            if (remainingTime > 20) {
+                return 20;
+            } else if (remainingTime > 10) {
+                return 25;
+            } else if (remainingTime > 5) {
+                return 30;
+            } else {
+                return 35;
+            }
+        }
+
+        // 检查碰撞
+        function checkCollision(a, b) {
+            // 简化碰撞检测，使用矩形碰撞
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        // 处理物品碰撞
+        function handleItemCollision(item) {
+            var itemConfig = ITEM_SCORES[item.type];
+            var oldScore = score;
+            
+            if (itemConfig.operation === 'add') {
+                // 加分
+                score += itemConfig.score;
+            } else if (itemConfig.operation === 'half') {
+                // 分数减半（向下取整）
+                score = Math.floor(score * 0.5);
+            }
+            
+            // 更新分数显示
+            document.getElementById('f').innerHTML = score;
+            
+            // 添加分数效果，持续时间1秒（1000毫秒）
+            showScoreEffect(item.x + item.width/2, item.y, itemConfig, oldScore);
+        }
+
+        // 显示分数变化效果
+        function showScoreEffect(x, y, itemConfig, oldScore) {
+            var text = '';
+            var color = '#fff';
+            var scoreChange = 0;
+            
+            if (itemConfig.operation === 'add') {
+                text = itemConfig.name;
+                color = '#4CAF50'; // 绿色
+                scoreChange = itemConfig.score;
+            } else {
+                text = '分数减半';
+                color = '#F44336'; // 红色
+                scoreChange = oldScore - score;
+            }
+            
+            // 添加到分数效果数组
+            scoreEffects.push({
+                text: text,
+                color: color,
+                x: x,
+                y: y,
+                scoreChange: scoreChange,
+                startTime: Date.now(),
+                duration: 1000, // 1秒
+                alpha: 1.0
+            });
+        }
+
+        // 绘制分数效果
+        function drawScoreEffects() {
+            var currentTime = Date.now();
+            
+            for (var i = scoreEffects.length - 1; i >= 0; i--) {
+                var effect = scoreEffects[i];
+                var elapsed = currentTime - effect.startTime;
+                
+                if (elapsed > effect.duration) {
+                    // 移除过期的效果
+                    scoreEffects.splice(i, 1);
+                    continue;
+                }
+                
+                // 计算透明度（渐变消失）
+                var progress = elapsed / effect.duration;
+                effect.alpha = 1.0 - progress;
+                
+                // 计算位置（向上移动）
+                var offsetY = progress * 50; // 向上移动50像素
+                
+                // 绘制分数效果
+                ctx.save();
+                ctx.font = 'bold 30px Arial';
+                ctx.fillStyle = effect.color;
+                ctx.globalAlpha = effect.alpha;
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 10;
+                ctx.fillText(effect.text, effect.x, effect.y - offsetY);
+                ctx.restore();
+            }
+        }
+
+        // 更新和绘制物品
+        function updateAndDrawItems() {
+            if (!gameRunning) return;
+            
+            var fallSpeed = getFallSpeed();
+            
+            for (var i = gameItems.length - 1; i >= 0; i--) {
+                var item = gameItems[i];
+                
+                // 检查碰撞
+                if (checkCollision(playerSprite, item)) {
+                    // 处理碰撞
+                    handleItemCollision(item);
+                    
+                    // 从数组中移除物品
+                    gameItems.splice(i, 1);
+                    continue;
+                }
+                
+                // 更新位置
+                item.y += fallSpeed;
+                
+                // 如果物品掉出屏幕，移除它
+                if (item.y > canvasH) {
+                    gameItems.splice(i, 1);
+                    continue;
+                }
+                
+                // 绘制物品
+                if (item.image && item.image.complete) {
+                    ctx.drawImage(item.image, item.x, item.y, item.width, item.height);
+                }
+            }
+        }
+
+        // 绘制玩家
+        function drawPlayer() {
+            if (playerSprite.image.complete) {
+                ctx.drawImage(playerSprite.image, 
+                             playerSprite.x, 
+                             playerSprite.y, 
+                             playerSprite.width, 
+                             playerSprite.height);
+            }
+        }
+
+        // 处理移动
+        function handleMove(event) {
+            if (!gameRunning) return;
+            
+            var touch;
+            if (event.touches) {
+                touch = event.touches[0];
+            } else {
+                touch = event;
+            }
+            
+            playerSprite.x = touch.clientX - playerWidth / 2;
+            
+            // 限制玩家在画布内移动
+            if (playerSprite.x + playerWidth >= canvasW) {
+                playerSprite.x = canvasW - playerWidth;
+            } else if (playerSprite.x <= 0) {
+                playerSprite.x = 0;
+            }
+            
+            if (event.preventDefault) {
+                event.preventDefault();
+            }
+        }
+
+        // 添加事件监听器
+        function addEventListeners() {
+            if (ca.addEventListener) {
+                ca.addEventListener("mousemove", handleMove, false);
+                ca.addEventListener("touchmove", handleMove, false);
+            } else {
+                ca.attachEvent("onmousemove", handleMove);
+                ca.attachEvent("ontouchmove", handleMove);
+            }
+        }
+
+        // 游戏主循环
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // 更新游戏时间
+            updateGameTime();
+            
+            // 绘制渐变背景
+            drawBackground();
+            
+            // 生成新物品
+            generateItems();
+            
+            // 更新和绘制物品
+            updateAndDrawItems();
+            
+            // 绘制分数效果
+            drawScoreEffects();
+            
+            // 绘制玩家
+            drawPlayer();
+            
+            // 检查游戏结束
+            if (remainingTime <= 0) {
+                endGame();
+            }
+        }
+
+        // 结束游戏
+        function endGame() {
+            if (!gameRunning) return;
+            
+            gameRunning = false;
+            
+            // 清除游戏循环
+            if (gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            
+            // 显示游戏结束弹窗
+            document.getElementById('finalScore').innerHTML = score;
+            document.getElementById('resultTitle').innerHTML = '🎉 游戏结束！ 🎉';
+            
+            // 根据得分给出不同评价
+            var message = '';
+            if (score <= 0) {
+                message = '不要气馁，再接再厉！';
+            } else if (score < 50) {
+                message = '不错哦，继续努力！';
+            } else if (score < 100) {
+                message = '表现不错，已经很棒了！';
+            } else if (score < 200) {
+                message = '太厉害了！你是接金币高手！';
+            } else {
+                message = '哇！你是接金币大神！太强了！';
+            }
+            
+            document.getElementById('resultMessage').innerHTML = message;
+            document.getElementById('gameOverlay').style.display = 'flex';
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            // 隐藏弹窗
+            document.getElementById('gameOverlay').style.display = 'none';
+            
+            // 重置游戏状态
+            gameRunning = true;
+            gameItems = [];
+            score = 0;
+            frameCount = 0;
+            scoreEffects = [];
+            gameStartTime = new Date();
+            remainingTime = gameTime;
+            
+            // 重新初始化粒子
+            initParticles();
+            
+            // 更新显示
+            document.getElementById('f').innerHTML = score;
+            document.getElementById('m').innerHTML = remainingTime;
+            
+            // 重新初始化玩家位置
+            initPlayer();
+            
+            // 重新开始游戏循环
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            gameInterval = setInterval(gameLoop, 100);
+        }
+
+        // 停止游戏
+        function stopGame() {
+            gameRunning = false;
+            if (gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+        }
+
+        // 初始化游戏
+        function initGame() {
+            initCanvas();
+            initPlayer();
+            addEventListeners();
+            
+            // 开始游戏循环
+            gameInterval = setInterval(gameLoop, 100);
+        }
+
+        // 页面加载完成后初始化游戏
+        $(document).ready(function() {
+            // 确保玩家图片加载完成后再开始游戏
+            player.onload = function() {
+                initGame();
+            };
+            
+            // 如果图片已经缓存，立即开始游戏
+            if (player.complete) {
+                initGame();
+            }
+            
+            // 预加载物品图片
+            for (var i = 0; i < itemImages.length; i++) {
+                var img = itemImages[i];
+                img.onerror = function() {
+                    console.error('图片加载失败:', this.src);
+                };
+            }
+        });
+
+        // 页面可见性变化处理
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // 页面隐藏，暂停游戏
+                if (gameRunning && gameInterval) {
+                    clearInterval(gameInterval);
+                }
+            } else {
+                // 页面显示，恢复游戏
+                if (gameRunning && !gameInterval) {
+                    gameInterval = setInterval(gameLoop, 100);
+                    gameStartTime = new Date(); // 重置开始时间
+                }
+            }
+        });
+
+        // 防止页面滚动
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>努努对对碰</title>
+    <link href="css/main.css" type="text/css" rel="stylesheet"/>
+    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+</head>
+<body class="bg">
+    <div class="puzzle-bg"></div>
+    <div class="game-content">
+        <h1 class="game-title">努努对对碰</h1>
+        <p class="game-intro">
+            欢迎来到「努努对对碰」游戏！<br/>
+            找到相同的努努，消除它们获得分数！
+        </p>
+        <div id="gameContainer"></div>
+    </div>
+	
+	<script type="text/javascript" src="js/nuddp.js?v=2"></script>
+	<script>
+		const game = new NuNuMatchGame('gameContainer', {
+			bottleImages: ['nu/xia.png', 'nu/potato.png','nu/choulian.png', 'nu/weixiao.png', 'nu/tutu.png'],
+			startBottles: 3,
+			maxBottles: 5,
+			poolExtra: 0,
+			maxHints: 3,
+			hintCooldown: 30,
+			maxLevel: 3
+		});
+		
+		// window.game = game;
+	</script>
+</body>
+</html>
