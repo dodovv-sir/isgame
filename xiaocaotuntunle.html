@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+		<script src="js/jquery-3.7.1.min.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/mobile750.js" type="text/javascript" charset="utf-8"></script>
+		<title>小草吞吞乐</title>
+		<meta name="description" content="all for isagi" />
+		<meta name="keywords" content="isagi" />
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				background-color: #000;
+			}
+			.gbg {
+				background-color: transparent;
+			}
+			#box {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+			}
+			#canvas {
+				display: block;
+				width: 100%;
+				height: 100%;
+			}
+			.game_fen, .game_time {
+				position: fixed;
+				top: 20px;
+				color: white;
+				font-size: 18px;
+				font-weight: bold;
+				z-index: 1000;
+				text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+			}
+			.game_fen {
+				left: 20px;
+			}
+			.game_time {
+				right: 20px;
+			}
+			.game_result {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0, 0, 0, 0.7);
+				display: none;
+				justify-content: center;
+				align-items: center;
+				z-index: 2000;
+			}
+			.game_cont {
+				background-color: white;
+				padding: 40px;
+				border-radius: 10px;
+				text-align: center;
+				box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+			}
+			.game_info strong {
+				font-size: 24px;
+				color: #333;
+			}
+			.btn_close {
+				margin-top: 20px;
+				padding: 10px 20px;
+				background-color: #4CAF50;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+				font-size: 16px;
+				transition: background-color 0.3s;
+			}
+			.btn_close:hover {
+				background-color: #45a049;
+				box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+			}
+			
+			/* 开始游戏页面 */
+			.start-page {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0, 0, 0, 0.9);
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				z-index: 3000;
+			}
+			.start-content {
+				text-align: center;
+				color: white;
+			}
+			.start-character {
+				width: 200px;
+				height: auto;
+				margin-bottom: 30px;
+				animation: bounce 2s infinite;
+			}
+			@keyframes bounce {
+				0%, 20%, 50%, 80%, 100% {
+					transform: translateY(0);
+				}
+				40% {
+					transform: translateY(-20px);
+				}
+				60% {
+					transform: translateY(-10px);
+				}
+			}
+			.start-content h1 {
+				font-size: 48px;
+				margin-bottom: 40px;
+				text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+			}
+			.start-buttons {
+				display: flex;
+				flex-direction: column;
+				gap: 20px;
+				align-items: center;
+			}
+			.btn-start, .btn-rules {
+				padding: 15px 30px;
+				font-size: 18px;
+				font-weight: bold;
+				border: none;
+				border-radius: 50px;
+				cursor: pointer;
+				transition: all 0.3s;
+				min-width: 200px;
+			}
+			.btn-start {
+				background-color: #4CAF50;
+				color: white;
+			}
+			.btn-start:hover {
+				background-color: #45a049;
+				transform: scale(1.05);
+				box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+			}
+			.btn-rules {
+				background-color: transparent;
+				color: white;
+				border: 2px solid white;
+			}
+			.btn-rules:hover {
+				background-color: rgba(255, 255, 255, 0.1);
+				transform: scale(1.05);
+			}
+			
+			/* 游戏规则弹窗 */
+			.modal {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0, 0, 0, 0.8);
+				display: none;
+				justify-content: center;
+				align-items: center;
+				z-index: 4000;
+			}
+			.modal-content {
+				background-color: #f8f9fa;
+				padding: 40px;
+				border-radius: 15px;
+				max-width: 500px;
+				width: 80%;
+				position: relative;
+				box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+				animation: modalFadeIn 0.3s ease-in-out;
+			}
+			@keyframes modalFadeIn {
+				from {
+					opacity: 0;
+					transform: scale(0.9);
+				}
+				to {
+					opacity: 1;
+					transform: scale(1);
+				}
+			}
+			.close {
+				position: absolute;
+				top: 15px;
+				right: 20px;
+				font-size: 28px;
+				font-weight: bold;
+				cursor: pointer;
+				color: #999;
+				transition: color 0.3s;
+			}
+			.close:hover {
+				color: #333;
+				transform: rotate(90deg);
+				transition: all 0.3s;
+			}
+			.modal-content h2 {
+				margin-top: 0;
+				color: #333;
+				text-align: center;
+				font-size: 28px;
+				margin-bottom: 25px;
+				text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+			}
+			.modal-content ul {
+				text-align: left;
+				color: #555;
+				padding-left: 25px;
+				margin: 0;
+			}
+			.modal-content li {
+				margin-bottom: 15px;
+				font-size: 16px;
+				line-height: 1.4;
+				position: relative;
+				padding-left: 10px;
+			}
+			.modal-content li:before {
+				content: '•';
+				color: #4CAF50;
+				font-size: 20px;
+				position: absolute;
+				left: -15px;
+				top: -2px;
+			}
+		</style>
+	</head>
+	<body class="gbg">
+		<div class="game_fen"><div class="cont">得分: <span id="f">0</span></div></div>
+		<div class="game_time"><div class="cont">还剩 <span id="m">30</span>s</div></div>
+		<div class="game_result">
+			<div class="game_cont">
+				<div class="game_info">
+					<strong>游戏结束！最终得分: <span id="finalScore">0</span></strong>
+				</div>
+				<div class="btn_close" onclick="location.reload()">重新开始</div>
+			</div>
+		</div>
+		
+		<!-- 开始游戏页面 -->
+		<div id="startPage" class="start-page">
+			<div class="start-content">
+				<img src="img/isa.png" class="start-character" alt="Isa" />
+				<h1>小草吞吞乐</h1>
+				<div class="start-buttons">
+					<button id="startBtn" class="btn-start">开始游戏</button>
+					<button id="rulesBtn" class="btn-rules">游戏规则</button>
+				</div>
+			</div>
+		</div>
+		
+		<!-- 游戏规则弹窗 -->
+		<div id="rulesModal" class="modal">
+			<div class="modal-content">
+				<span class="close">&times;</span>
+				<h2>游戏规则</h2>
+				<ul>
+					<li>使用鼠标或触摸移动角色</li>
+					<li>收集绿色和金色物品获得分数</li>
+					<li>避开灰色物品，否则会扣分</li>
+					<li>游戏时间为30秒</li>
+					<li>尽可能获得高分！</li>
+				</ul>
+			</div>
+		</div>
+		
+		<div id="box" class="gbg">
+			<canvas id="canvas"></canvas>
+		</div>
+		
+		<script type="text/javascript">
+			// 粒子类
+			class Particle {
+				constructor(x, y, color) {
+					this.x = x;
+					this.y = y;
+					this.size = Math.random() * 5 + 2;
+					this.speedX = Math.random() * 6 - 3;
+					this.speedY = Math.random() * 6 - 3;
+					this.color = color || this.getRandomColor();
+					this.life = 30;
+					this.opacity = 1;
+				}
+				
+				getRandomColor() {
+					const colors = ['#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE'];
+					return colors[Math.floor(Math.random() * colors.length)];
+				}
+			}
+			
+			// 星星类
+			class Star {
+				constructor(canvasW, canvasH) {
+					this.x = Math.random() * canvasW;
+					this.y = Math.random() * canvasH;
+					this.size = Math.random() * 2 + 1;
+					this.brightness = Math.random() * 0.8 + 0.2;
+					this.speed = Math.random() * 0.5 + 0.1;
+				}
+				
+				update() {
+					this.brightness += this.speed;
+					if (this.brightness > 1) {
+						this.speed *= -1;
+					} else if (this.brightness < 0.2) {
+						this.speed *= -1;
+					}
+				}
+				
+				draw(ctx) {
+					ctx.globalAlpha = this.brightness;
+					ctx.fillStyle = '#FFFFFF';
+					ctx.beginPath();
+					ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+					ctx.fill();
+					ctx.globalAlpha = 1;
+				}
+			}
+			
+			// 分数文本类
+			class ScoreText {
+				constructor(x, y, score) {
+					this.x = x;
+					this.y = y;
+					this.score = score;
+					this.opacity = 1;
+					this.speedY = -2;
+					this.life = 60;
+				}
+				
+				update() {
+					this.y += this.speedY;
+					this.life--;
+					this.opacity = this.life / 60;
+				}
+				
+				draw(ctx) {
+					ctx.globalAlpha = this.opacity;
+					ctx.fillStyle = this.score > 0 ? '#4CAF50' : '#FF5252';
+					ctx.font = 'bold 20px Arial';
+					ctx.textAlign = 'center';
+					ctx.fillText((this.score > 0 ? '+' : '') + this.score, this.x, this.y);
+					ctx.globalAlpha = 1;
+				}
+			}
+			
+			// 游戏主类
+			class GrassEatingGame {
+				constructor(options = {}) {
+					// 默认配置
+					const defaults = {
+						playerImage: "img/isa.png",
+						playerScale: 0.4,
+						playerWidth: 345,
+						playerHeight: 554,
+						dropItems: [
+						    {src: "img/1.png", type: "add", score: 2, width: 80, height: 80, color: null, frequency: 10},
+						    {src: "img/2.png", type: "add", score: 2, width: 90, height: 90, color: null, frequency: 12},
+						    {src: "img/3.png", type: "add", score: 2, width: 70, height: 70, color: null, frequency: 15},
+						    {src: "img/0.png", type: "minus", score: -1, width: 85, height: 85, color: null, frequency: 8},
+						    {src: null, type: "text", score: 5, width: 60, height: 60, text: "★", color: "#FFD700", frequency: 20}
+						],
+						gameTime: 30,
+						particleCount: 15,
+						dropFrequency: 10
+					};
+					
+					// 合并配置
+					this.config = { ...defaults, ...options };
+					
+					this.canvas = document.getElementById('canvas');
+					this.ctx = this.canvas.getContext('2d');
+					this.particles = [];
+					this.stars = [];
+					this.scoreTexts = [];
+					this.preloadedItems = [];
+					this.B = this.config.playerScale;
+					this.canvasW = window.innerWidth;
+					this.canvasH = window.innerHeight;
+					this.player = new Image();
+					this.player.src = this.config.playerImage;
+					this.playerWidth = this.config.playerWidth * this.B;
+					this.playerHeight = this.config.playerHeight * this.B;
+					this.tu = [];
+					this.h = 20;
+					this.sudu = 10;
+					this.chi = 0;
+					this.shi = 0;
+					this.fs = 0;
+					this.sprite = null;
+					this.beginTime = new Date();
+					this.gameTime = this.config.gameTime;
+					this.remainTime = this.gameTime;
+					this.interval = null;
+					
+					this.init();
+				}
+			
+				init() {
+					this.setupCanvas();
+					this.createStars();
+					this.preloadImages();
+					this.createPlayer();
+					this.setupEventListeners();
+					this.startGame();
+				}
+			
+				setupCanvas() {
+					this.canvas.width = this.canvasW;
+					this.canvas.height = this.canvasH;
+				}
+			
+				createStars() {
+					// 创建星星
+					for (let i = 0; i < 100; i++) {
+						this.stars.push(new Star(this.canvasW, this.canvasH));
+					}
+				}
+			
+				preloadImages() {
+					this.config.dropItems.forEach((item, index) => {
+						if (item.src) {
+							const img = new Image();
+							img.src = item.src;
+							img.type = item.type;
+							img.score = item.score;
+							img.width = item.width;
+							img.height = item.height;
+							img.id = index;
+							this.preloadedItems.push(img);
+						} else {
+							this.preloadedItems.push(item);
+						}
+					});
+				}
+			
+				createPlayer() {
+					this.sprite = {
+						x: (this.canvasW - this.playerWidth) / 2,
+						y: this.canvasH - this.playerHeight,
+						image: this.player,
+						width: this.playerWidth,
+						height: this.playerHeight
+					};
+				}
+			
+				setupEventListeners() {
+					this.addListener(this.canvas, "mousemove", (event) => this.handleMove(event));
+					this.addListener(this.canvas, "touchmove", (event) => this.handleMove(event));
+					// 监听窗口大小变化
+					this.addListener(window, "resize", () => this.handleResize());
+				}
+			
+				handleResize() {
+					this.canvasW = window.innerWidth;
+					this.canvasH = window.innerHeight;
+					this.setupCanvas();
+					this.createStars();
+					this.sprite.x = (this.canvasW - this.playerWidth) / 2;
+					this.sprite.y = this.canvasH - this.playerHeight;
+				}
+			
+				handleMove(event) {
+					const touch = event.touches ? event.touches[0] : event;
+					this.sprite.x = touch.clientX - this.playerWidth / 2;
+					if (this.sprite.x + this.playerWidth >= this.canvasW) {
+						this.sprite.x = this.canvasW - this.playerWidth;
+					} else if (this.sprite.x <= 0) {
+						this.sprite.x = 0;
+					}
+					event.preventDefault();
+				}
+			
+				addListener(element, e, fn) {
+					if (element.addEventListener) {
+						element.addEventListener(e, fn, false);
+					} else {
+						element.attachEvent("on" + e, fn);
+					}
+				}
+			
+				startGame() {
+					this.beginTime = new Date();
+					this.remainTime = this.gameTime;
+					this.interval = setInterval(() => {
+						this.update();
+						this.draw();
+						this.checkTime();
+						
+						if (this.remainTime <= 0) {
+							this.stopGame();
+						}
+					}, 16); // 60fps
+				}
+			
+				update() {
+					this.suduKongZhi();
+					this.chansheng();
+					
+					// 更新星星
+					for (const star of this.stars) {
+						star.update();
+					}
+					
+					// 更新分数文本
+					for (let i = 0; i < this.scoreTexts.length; i++) {
+						const text = this.scoreTexts[i];
+						text.update();
+						if (text.life <= 0) {
+							this.scoreTexts.splice(i, 1);
+							i--;
+						}
+					}
+					
+					for (let i = 0; i < this.tu.length; i++) {
+						if (this.jianche(this.sprite, this.tu[i])) {
+							const scoreChange = this.tu[i].q;
+							this.fs += scoreChange;
+							
+							const collisionX = this.tu[i].x + this.tu[i].width / 2;
+							const collisionY = this.tu[i].y + this.tu[i].height / 2;
+							const particleColor = scoreChange > 0 ? '#4CAF50' : '#FF5252';
+							this.createParticles(collisionX, collisionY, this.config.particleCount, particleColor);
+							
+							// 创建分数文本
+							this.scoreTexts.push(new ScoreText(collisionX, collisionY, scoreChange));
+							
+							this.tu[i].y += 200;
+						} else {
+							this.tu[i].y += this.sudu;
+						}
+					}
+					
+					this.updateParticles();
+				}
+			
+				draw() {
+					this.ctx.clearRect(0, 0, this.canvasW, this.canvasH);
+					
+					// 绘制星空背景
+					for (const star of this.stars) {
+						star.draw(this.ctx);
+					}
+					
+					// 绘制渐变背景
+					const gradient = this.ctx.createLinearGradient(0, 0, this.canvasW, this.canvasH);
+					gradient.addColorStop(0, 'rgba(15, 12, 41, 0.8)');
+					gradient.addColorStop(0.3, 'rgba(48, 43, 99, 0.8)');
+					gradient.addColorStop(0.5, 'rgba(36, 36, 62, 0.8)');
+					gradient.addColorStop(0.7, 'rgba(48, 43, 99, 0.8)');
+					gradient.addColorStop(1, 'rgba(15, 12, 41, 0.8)');
+					this.ctx.fillStyle = gradient;
+					this.ctx.fillRect(0, 0, this.canvasW, this.canvasH);
+					
+					// 绘制玩家
+					if (this.player.complete) {
+						this.ctx.drawImage(this.sprite.image, this.sprite.x, this.sprite.y, this.sprite.width, this.sprite.height);
+					}
+					
+					// 绘制掉落物
+					for (let i = 0; i < this.tu.length; i++) {
+						if (this.tu[i].itemData) {
+							if (this.tu[i].itemData.type === "text" && this.tu[i].itemData.text) {
+								this.ctx.fillStyle = this.tu[i].itemData.color || "#FFFFFF";
+								this.ctx.font = "bold " + (this.tu[i].height * 1.2) + "px Arial";
+								this.ctx.textAlign = "center";
+								this.ctx.textBaseline = "middle";
+								this.ctx.fillText(this.tu[i].itemData.text, 
+									this.tu[i].x + this.tu[i].width / 2, 
+									this.tu[i].y + this.tu[i].height / 2);
+							} else if (this.tu[i].image && this.tu[i].image.complete) {
+								this.ctx.drawImage(this.tu[i].image, this.tu[i].x, this.tu[i].y, this.tu[i].width, this.tu[i].height);
+							}
+						}
+					}
+					
+					// 绘制粒子
+					this.drawParticles();
+					
+					// 绘制分数文本
+					for (const text of this.scoreTexts) {
+						text.draw(this.ctx);
+					}
+					
+					// 更新得分显示
+					document.getElementById("f").innerHTML = this.fs;
+				}
+			
+				suduKongZhi() {
+					const baseFrequency = this.config.dropFrequency || 10;
+					if (this.remainTime > 20) {
+						this.h = baseFrequency;
+						this.sudu = 6;
+					} else if (this.remainTime > 10) {
+						this.h = Math.max(1, baseFrequency - 2);
+						this.sudu = 8;
+					} else if (this.remainTime > 5) {
+						this.h = Math.max(1, baseFrequency - 4);
+						this.sudu = 10;
+					} else {
+						this.h = Math.max(1, baseFrequency - 5);
+						this.sudu = 12;
+					}
+				}
+			
+				chansheng() {
+					if (this.shi % this.h == 0) {
+						for (let j = 2 * this.chi; j < 2 * (this.chi + 1); j++) {
+							const range = this.canvasW - 60 * this.B;
+							let i = Math.round(Math.random() * range);
+							
+							if (j == 2 * this.chi + 1 && this.tu[2 * this.chi]) {
+								while (Math.abs(i - this.tu[2 * this.chi].x) < 30) {
+									i = Math.round(Math.random() * range);
+								}
+							}
+							
+							// 根据频率加权选择坠落物
+							const selectedItem = this.selectItemByFrequency();
+							
+							this.tu[j] = {
+								x: i,
+								y: -Math.round(Math.random() * 300),
+								image: selectedItem instanceof Image ? selectedItem : null,
+								itemData: selectedItem,
+								width: selectedItem.width,
+								height: selectedItem.height,
+								q: selectedItem.score
+							};
+						}
+						this.chi++;
+						if (this.chi == 10) this.chi = 0;
+					}
+					this.shi++;
+				}
+				
+				selectItemByFrequency() {
+					// 计算总权重
+					let totalWeight = 0;
+					for (const item of this.preloadedItems) {
+						totalWeight += 1 / (item.frequency || 10);
+					}
+					
+					// 随机选择
+					let random = Math.random() * totalWeight;
+					let currentWeight = 0;
+					
+					for (const item of this.preloadedItems) {
+						currentWeight += 1 / (item.frequency || 10);
+						if (random <= currentWeight) {
+							return item;
+						}
+					}
+					
+					// 默认返回第一个物品
+					return this.preloadedItems[0];
+				}
+			
+				jianche(a, b) {
+					const c = a.x - b.x;
+					const d = a.y - b.y;
+					return c < b.width && c > -a.width && d < b.height && d > -a.height;
+				}
+			
+				checkTime() {
+					const nowTime = new Date();
+					this.remainTime = this.gameTime - parseInt((nowTime.getTime() - this.beginTime.getTime()) / 1000);
+					document.getElementById('m').innerHTML = this.remainTime;
+				}
+			
+				createParticles(x, y, count, color) {
+					for (let i = 0; i < count; i++) {
+						this.particles.push(new Particle(x, y, color));
+					}
+				}
+			
+				updateParticles() {
+					for (let i = 0; i < this.particles.length; i++) {
+						const p = this.particles[i];
+						p.x += p.speedX;
+						p.y += p.speedY;
+						p.life--;
+						p.opacity = p.life / 30;
+						
+						if (p.life <= 0) {
+							this.particles.splice(i, 1);
+							i--;
+						}
+					}
+				}
+			
+				drawParticles() {
+					for (const p of this.particles) {
+						this.ctx.globalAlpha = p.opacity;
+						this.ctx.fillStyle = p.color;
+						this.ctx.beginPath();
+						this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+						this.ctx.fill();
+						this.ctx.globalAlpha = 1;
+					}
+				}
+			
+				stopGame() {
+					clearInterval(this.interval);
+					document.getElementById('finalScore').innerHTML = this.fs;
+					document.querySelector('.game_result').style.display = 'flex';
+				}
+			}
+			
+			// 启动游戏
+			window.onload = function() {
+				// 获取DOM元素
+				const startPage = document.getElementById('startPage');
+				const startBtn = document.getElementById('startBtn');
+				const rulesBtn = document.getElementById('rulesBtn');
+				const rulesModal = document.getElementById('rulesModal');
+				const closeBtn = document.querySelector('.close');
+				
+				// 游戏规则弹窗
+				rulesBtn.addEventListener('click', function() {
+					rulesModal.style.display = 'flex';
+				});
+				
+				closeBtn.addEventListener('click', function() {
+					rulesModal.style.display = 'none';
+				});
+				
+				rulesModal.addEventListener('click', function(e) {
+					if (e.target === rulesModal) {
+						rulesModal.style.display = 'none';
+					}
+				});
+				
+				// 开始游戏
+				startBtn.addEventListener('click', function() {
+					startPage.style.display = 'none';
+					// 创建游戏实例
+					const game = new GrassEatingGame({
+						// 可以通过配置对象自定义游戏参数
+						// playerImage: "img/custom_player.png",
+						// playerScale: 0.6,
+						// playerWidth: 300,
+						// playerHeight: 500,
+						// dropItems: [...custom drop items...],
+						// gameTime: 60,
+						// particleCount: 20
+					});
+				});
+			};
+		</script>
+		
+	</body>
+</html>
