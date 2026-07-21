@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>努努消消乐</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: var(--bg, #eef6ff);
+    min-height: 100vh; color: #2d3a4b; -webkit-text-size-adjust: 100%;
+  }
+  @media (min-width: 600px) {
+    body { background: linear-gradient(160deg, #dce8f7 0%, #e6f3ee 100%); display: flex; justify-content: center; align-items: flex-start; padding: 20px 14px; }
+    .app-shell { max-width: 460px; min-height: auto; border-radius: 32px; box-shadow: 0 20px 60px rgba(91,141,239,0.22), 0 4px 12px rgba(0,0,0,0.06); overflow: hidden; }
+  }
+  .app-shell { width: 100%; min-height: 100vh; background: var(--bg, #eef6ff); position: relative; display: flex; flex-direction: column; }
+
+  /* 顶部返回条 */
+  .top-bar {
+    background: linear-gradient(135deg, #5b8def 0%, #4cc9a0 100%);
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px;
+    display: flex; align-items: center; gap: 12px; position: relative; flex-shrink: 0;
+  }
+  .back-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .back-btn.hidden { visibility: hidden; }
+  .back-btn svg { width: 20px; height: 20px; }
+  .ttl { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+
+  .game-body { padding: 16px 16px 24px; flex: 1; min-height: 0; overflow-y: auto; }
+  .hidden { display: none !important; }
+
+  /* 开始页 */
+  .home-title { text-align: center; font-size: 26px; font-weight: 800; color: #2d3a4b; margin: 6px 0 10px; }
+  .home-sub { text-align: center; font-size: 13px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .start-btn {
+    display: block; width: 100%; max-width: 280px; margin: 22px auto 0;
+    border: none; border-radius: 16px; padding: 16px; font-size: 1.2rem; font-weight: bold;
+    color: #fff; cursor: pointer; background: linear-gradient(135deg,#5b8def,#4cc9a0);
+    box-shadow: 0 8px 20px rgba(91,141,239,0.3); transition: all .3s;
+  }
+  .start-btn:active { transform: scale(.96); }
+
+  /* 目标横幅（上方：提示图 + 需要找到的努名字） */
+  .target-bar {
+    display: flex; align-items: center; gap: 12px; background: #fff;
+    border-radius: 16px; padding: 10px 12px; margin-bottom: 12px;
+    box-shadow: 0 6px 18px rgba(91,141,239,0.12);
+  }
+  .target-pic {
+    width: 52px; height: 52px; border-radius: 12px; background: #eef4fb; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+    box-shadow: inset 0 0 0 3px #ffc94d;
+  }
+  .target-pic img { width: 86%; height: 86%; object-fit: contain; }
+  .target-pic .tag {
+    position: absolute; bottom: -2px; right: -2px; background: #ffc94d; color: #5b4a00;
+    font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 8px 0 8px 0; line-height: 1.4;
+  }
+  .target-info { flex: 1; min-width: 0; }
+  .target-text { font-size: 13px; color: #5b6b7c; }
+  .target-text b { color: #2d3a4b; font-size: 16px; }
+  .target-text .hint { color: #b0bccb; font-size: 11px; }
+  .target-prog { font-size: 22px; font-weight: 800; color: #4cc9a0; margin-top: 2px; }
+  .target-prog .need { font-size: 14px; color: #8a98a8; font-weight: 600; }
+
+  /* 头部信息（下方） */
+  .hud { display: flex; gap: 10px; margin-bottom: 12px; }
+  .hud-card {
+    flex: 1; background: #fff; border-radius: 14px; padding: 10px; text-align: center;
+    box-shadow: 0 4px 12px rgba(91,141,239,0.08);
+  }
+  .hud-label { font-size: 11px; color: #8a98a8; }
+  .hud-value { font-size: 20px; font-weight: 800; color: #2d3a4b; margin-top: 2px; }
+  .hud-value.danger { color: #ff5a5a; animation: blink .8s infinite; }
+  @keyframes blink { 50% { opacity: .45; } }
+
+  /* 操作按钮 */
+  .ops { display: flex; gap: 10px; margin-bottom: 12px; }
+  .op-btn {
+    flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: .95rem; font-weight: bold;
+    cursor: pointer; transition: all .3s; color: #fff;
+  }
+  .op-btn.restart { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .op-btn:active { transform: scale(.96); }
+
+  /* 牌堆（下方，正面可见、像一堆钉子） */
+  .deck-wrap {
+    background: linear-gradient(180deg,#f3f8ff,#eaf3ff);
+    border-radius: 18px; padding: 12px 10px; box-shadow: inset 0 0 0 1px rgba(91,141,239,0.12), 0 8px 22px rgba(91,141,239,0.1);
+  }
+  #deck { width: 100%; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px 6px; align-content: start; }
+  .tile {
+    width: 100%; aspect-ratio: 1/1; border-radius: 12px; background: #fff; border: none; padding: 0;
+    cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 5px rgba(45,58,75,0.16); transform: rotate(var(--rot, 0deg));
+    transition: transform .15s;
+  }
+  .tile .face-img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 12px; pointer-events: none; }
+  .tile:active { transform: rotate(var(--rot, 0deg)) scale(.93); }
+  /* 被选中待定（找到 3 只后等待是否跟走） */
+  .tile.picked { box-shadow: inset 0 0 0 3px #4cc9a0, 0 2px 6px rgba(45,58,75,0.18); background: #e3f7ef; }
+  /* 跟走消除 */
+  .tile.gone { animation: pull-out .38s ease forwards; pointer-events: none; }
+  @keyframes pull-out {
+    0%   { transform: rotate(var(--rot,0deg)) scale(1); opacity: 1; }
+    40%  { transform: rotate(calc(var(--rot,0deg) + 14deg)) scale(1.18) translateY(-8px); }
+    100% { transform: rotate(calc(var(--rot,0deg) - 26deg)) scale(0) translateY(-34px); opacity: 0; }
+  }
+  /* 挣脱离开 */
+  .tile.flee { animation: flee .5s ease forwards; pointer-events: none; }
+  @keyframes flee {
+    0%   { transform: rotate(var(--rot,0deg)) scale(1); opacity: 1; }
+    30%  { transform: rotate(calc(var(--rot,0deg) - 14deg)) scale(1.12) translate(6px,-4px); }
+    100% { transform: rotate(calc(var(--rot,0deg) + 32deg)) scale(.25) translate(46px,46px); opacity: 0; }
+  }
+  /* 点错抖动 */
+  .tile.wrong { animation: shake .42s; }
+  @keyframes shake {
+    0%,100% { transform: rotate(var(--rot,0deg)); }
+    15% { transform: rotate(calc(var(--rot,0deg) - 9deg)) translateX(-4px); }
+    35% { transform: rotate(calc(var(--rot,0deg) + 9deg)) translateX(4px); }
+    55% { transform: rotate(calc(var(--rot,0deg) - 7deg)) translateX(-3px); }
+    75% { transform: rotate(calc(var(--rot,0deg) + 7deg)) translateX(3px); }
+  }
+  .tile.flash-wrong { box-shadow: 0 0 0 3px #ff6b6b, 0 2px 5px rgba(45,58,75,0.16); }
+
+  .tip { text-align: center; color: #8a98a8; font-size: .8rem; margin-top: 12px; line-height: 1.5; }
+  .wrong-toast {
+    position: fixed; left: 50%; top: 46%; transform: translate(-50%,-50%) scale(.8);
+    background: rgba(255,107,107,0.95); color: #fff; font-weight: 800; font-size: 15px;
+    padding: 10px 18px; border-radius: 30px; opacity: 0; pointer-events: none; z-index: 60;
+    transition: opacity .2s, transform .2s; box-shadow: 0 6px 18px rgba(255,107,107,0.4);
+  }
+  .wrong-toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+  /* 弹窗 */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+    justify-content: center; align-items: center; z-index: 50; padding: 24px;
+  }
+  .overlay.show { display: flex; }
+  .dialog {
+    background: #fff; border-radius: 22px; padding: 26px 22px; width: 100%; max-width: 340px;
+    text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .dialog h3 { font-size: 22px; color: #2d3a4b; margin-bottom: 14px; }
+  .dialog p { font-size: 14px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .dialog-btns { display: flex; flex-direction: column; gap: 10px; }
+  .d-btn {
+    border: none; border-radius: 14px; padding: 13px; font-size: 1rem; font-weight: bold;
+    cursor: pointer; color: #fff; transition: all .3s; background: #5b8def;
+  }
+  .d-btn.ghost { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .d-btn:active { transform: scale(.96); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="top-bar">
+    <button class="back-btn hidden" id="backBtn" onclick="goHome()" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="ttl" id="ttl">努努消消乐</div>
+  </div>
+
+  <!-- 开始页 -->
+  <div class="game-body" id="homePage">
+    <svg viewBox="0 0 120 120" fill="none" stroke="#5b8def" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:90px;height:90px;margin:6px auto 4px;display:block;">
+      <rect x="14" y="28" width="30" height="30" rx="7" fill="#e3edff"/>
+      <rect x="78" y="22" width="26" height="26" rx="6" fill="#e3f7ef" stroke="#4cc9a0"/>
+      <path d="M14 78h92" stroke-width="3" stroke-dasharray="4 5"/>
+      <circle cx="34" cy="88" r="9" fill="#e3edff"/><circle cx="60" cy="88" r="9" fill="#e3f7ef" stroke="#4cc9a0"/><circle cx="86" cy="88" r="9" fill="#e3edff"/>
+    </svg>
+    <h1 class="home-title">努努消消乐</h1>
+    <p class="home-sub">上方会出现一只努并说出它的心愿（如「ou 想找虾努做婆娘」），<br>你需要在下方一堆牌里找到<b>它想找的那只努</b>，<br>凑齐 3 只消除一组，在倒计时内完成全部目标！</p>
+    <button class="start-btn" id="startBtn">开始游戏</button>
+  </div>
+
+  <!-- 游戏页 -->
+  <div class="game-body hidden" id="gamePage">
+    <!-- 上方：提示图（可与需要图不同） + 需要找到的努名字 -->
+    <div class="target-bar">
+      <div class="target-pic">
+        <img id="targetImg" src="" alt="">
+        <span class="tag">&#10084;</span>
+      </div>
+      <div class="target-info">
+        <div class="target-text" id="lineText"><b>ou</b>想找<b>虾努</b>做婆娘</div>
+        <div class="target-prog">已找到 <span id="collected">0</span> <span class="need">/ 3</span></div>
+      </div>
+    </div>
+
+    <!-- 下方：倒计时 / 失误 / 进度 -->
+    <div class="hud">
+      <div class="hud-card"><div class="hud-label">倒计时</div><div class="hud-value" id="timeText">100s</div></div>
+      <div class="hud-card"><div class="hud-label">失误</div><div class="hud-value" id="missText">0</div></div>
+      <div class="hud-card"><div class="hud-label">进度</div><div class="hud-value" id="proText">0/6</div></div>
+    </div>
+
+    <div class="ops">
+      <button class="op-btn restart" id="restartBtn">重新开始</button>
+    </div>
+
+    <!-- 下方：努努牌堆（正面可见） -->
+    <div class="deck-wrap">
+      <div id="deck"></div>
+    </div>
+
+    <div class="tip">按上方名字在牌堆里找出对应的努并点选，凑满 3 只即消除（仅当发起努是 nagi / ou / rin 时，才问被找的努是否愿意跟走）；点错会记一次失误哦！</div>
+  </div>
+</div>
+
+<div class="wrong-toast" id="wrongToast">✕ 这不是当前目标</div>
+
+<!-- 是否跟走选择弹窗 -->
+<div class="overlay" id="choiceOverlay">
+  <div class="dialog">
+    <h3 id="choiceTitle">愿意跟鸥走吗？</h3>
+    <p id="choiceText"></p>
+    <div class="dialog-btns">
+      <button class="d-btn ghost" id="followYes">愿意跟走</button>
+      <button class="d-btn" id="followNo">不愿意 · 挣脱离开</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结束弹窗 -->
+<div class="overlay" id="overOverlay">
+  <div class="dialog">
+    <h3 id="overTitle">全部消除成功！</h3>
+    <p id="overText"></p>
+    <div class="dialog-btns">
+      <button class="d-btn" id="againBtn">再来一次</button>
+      <button class="d-btn ghost" id="overHomeBtn">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 素材（nu 文件夹）
+  const IMAGES = [
+    'nu/xia.png','nu/potato.png','nu/choulian.png','nu/weixiao.png','nu/tutu.png',
+    'nu/apple.png','nu/cunguan.png','nu/magic.png','nu/nagi.png','nu/ou.png',
+    'nu/rin.png','nu/shutiao.png','nu/wink.png','nu/younian.png','nu/zhuonghua.png'
+  ];
+  // 每只努的友好名字（顶部用文字指定要找的努）
+  const NAMES = {
+    'nu/xia.png':'虾虾', 'nu/potato.png':'小土豆', 'nu/choulian.png':'臭脸',
+    'nu/weixiao.png':'微笑', 'nu/tutu.png':'兔兔大王', 'nu/apple.png':'苹果妹',
+    'nu/cunguan.png':'村官', 'nu/magic.png':'魔法精灵', 'nu/nagi.png':'nagi',
+    'nu/ou.png':'鸥', 'nu/rin.png':'鹰', 'nu/shutiao.png':'薯条妹',
+    'nu/wink.png':'wink', 'nu/younian.png':'幼年', 'nu/zhuonghua.png':'中华努'
+  };
+
+  /* ============ 可自定义配置区（以后只改这里即可） ============ */
+  // ① 互斥组：同一组内的努【不能互相要】，但可以要组外任意努
+  const EXCLUSIVE_GROUPS = [
+    ['nu/nagi.png', 'nu/ou.png', 'nu/rin.png']
+  ];
+
+  // ② 自定义话术：指定「发起努 -> 被要努」的专属台词
+  //    占位符 {a}=发起努名字，{b}=被要努名字
+  //    优先级：精确台词 LINES[a][b] > 该发起努默认 DEFAULT_LINES[a] > 全局 DEFAULT_LINE
+  const LINES = {
+    'nu/ou.png': { 'nu/xia.png': '{a}想找{b}做婆娘'},
+    // 'nu/nagi.png': { 'nu/younian.png': '{a}对{b}垂涎已久'},
+    // 继续添加，例如：
+    // 'nu/shutiao.png': { 'nu/potato.png': '{a}想请{b}吃薯条' },
+  };
+  // ③ 按发起努的「通用默认值」：给单独一只努对所有其他努设置统一话术
+  //    例如 ou 对谁都说"做婆娘"，只写这一行即可，无需逐个配
+  const DEFAULT_LINES = {
+    'nu/ou.png': '{a}想找{b}做婆娘',
+    'nu/nagi.png': '{a}对{b}垂涎已久',
+    'nu/shutiao.png': '{a}想请{b}吃薯条',
+  };
+  const DEFAULT_LINE = '{a}想找{b}';
+
+  // 判断 a、b 是否在同一互斥组（互斥则不能要彼此）
+  function isExclusivePair(a, b) {
+    return EXCLUSIVE_GROUPS.some(g => g.includes(a) && g.includes(b));
+  }
+  // 某只发起努【可以要】的努列表（排除自己 + 排除互斥组内的）
+  function allowedNeeds(starter) {
+    return IMAGES.filter(x => x !== starter && !isExclusivePair(starter, x));
+  }
+  // 生成话术（名字加粗）：精确 > 该发起努默认 > 全局默认
+  function lineFor(a, b) {
+    const tpl = (LINES[a] && LINES[a][b]) || DEFAULT_LINES[a] || DEFAULT_LINE;
+    return tpl.replace('{a}', '<b>' + NAMES[a] + '</b>')
+              .replace('{b}', '<b>' + NAMES[b] + '</b>');
+  }
+  /* ============ 配置区结束 ============ */
+  const ROUNDS = 6;          // 需要完成的指定目标组数
+  const PER = 3;             // 每组 3 只
+  const DISTRACT = 24;       // 干扰牌数量（增加寻找难度）
+  const TIME_LIMIT = 100;    // 倒计时秒数
+  const EXCLUSIVE_FLAT = [].concat(...EXCLUSIVE_GROUPS); // 互斥组全部努（仅它们被问是否跟走）
+
+  const deckEl = document.getElementById('deck');
+  const targetImg = document.getElementById('targetImg');
+  const lineEl = document.getElementById('lineText');
+  const collectedEl = document.getElementById('collected');
+  const timeText = document.getElementById('timeText');
+  const missText = document.getElementById('missText');
+  const proText = document.getElementById('proText');
+  const overOverlay = document.getElementById('overOverlay');
+  const wrongToast = document.getElementById('wrongToast');
+  const choiceOverlay = document.getElementById('choiceOverlay');
+  const choiceText = document.getElementById('choiceText');
+
+  let rounds = [];           // 每一轮：{need(要找的图), display(顶部提示图), name}
+  let round = 0;             // 当前轮
+  let collected = 0;         // 当前目标已找到数
+  let completed = 0;         // 已成功牵手的组数（进度）
+  let tiles = [];            // 牌堆：{el, img, gone, picked}
+  let miss = 0;
+  let timeLeft = TIME_LIMIT;
+  let timer = null;
+  let started = false;
+  let over = false;
+  let toastTimer = null;
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function randRot() { return (Math.random() * 16 - 8).toFixed(1) + 'deg'; }
+
+  function buildRounds() {
+    // 依次挑选发起努（display）与它「可以要」的被要努（need）
+    const starters = shuffle([...IMAGES]);
+    const list = [];
+    const usedNeed = new Set();
+    for (const s of starters) {
+      if (list.length >= ROUNDS) break;
+      const cands = allowedNeeds(s).filter(n => !usedNeed.has(n));
+      if (!cands.length) continue;
+      const need = cands[Math.floor(Math.random() * cands.length)];
+      usedNeed.add(need);
+      list.push({ display: s, need: need, name: NAMES[need], line: lineFor(s, need), ask: EXCLUSIVE_FLAT.includes(s) });
+    }
+    return list;
+  }
+
+  function buildDeck() {
+    const deck = [];
+    // 每轮需要图放 3 张（玩家在牌堆里找的是 need 图）
+    rounds.forEach(r => { for (let k = 0; k < PER; k++) deck.push(r.need); });
+    // 干扰牌（任意努，含其它轮的需要图，增加辨识难度）
+    for (let i = 0; i < DISTRACT; i++) deck.push(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
+    return shuffle(deck);
+  }
+
+  function setTarget() {
+    const r = rounds[round];
+    targetImg.src = r.display;     // 顶部展示发起努（想找对象的努）
+    lineEl.innerHTML = r.line;     // 话术：如「ou 想找 虾努 做婆娘」
+    collected = 0;
+    collectedEl.textContent = '0';
+  }
+
+  function renderDeck() {
+    const deck = buildDeck();
+    deckEl.innerHTML = '';
+    tiles = [];
+    deck.forEach(src => {
+      const btn = document.createElement('button');
+      btn.className = 'tile';
+      btn.style.setProperty('--rot', randRot());
+      btn.innerHTML = '<img class="face-img" src="' + src + '" alt="">';
+      const obj = { el: btn, img: src, gone: false, picked: false };
+      btn.addEventListener('click', () => onTile(obj));
+      tiles.push(obj);
+      deckEl.appendChild(btn);
+    });
+  }
+
+  function onTile(obj) {
+    if (over || obj.gone) return;
+    if (!started) { started = true; startTimer(); }
+
+    if (obj.img === rounds[round].need) {
+      if (obj.picked) return;
+      // 命中需要的努 → 选中（等待是否跟走）
+      obj.picked = true;
+      obj.el.classList.add('picked');
+      collected++;
+      collectedEl.textContent = collected;
+      if (collected >= PER) {
+        if (rounds[round].ask) setTimeout(showChoice, 430);
+        else setTimeout(() => chooseFollow(true), 430); // 非互斥努直接消除
+      }
+    } else {
+      // 拔错 → 记一次失误，抖动提示
+      miss++;
+      missText.textContent = miss;
+      obj.el.classList.add('wrong', 'flash-wrong');
+      showToast();
+      setTimeout(() => { obj.el.classList.remove('wrong', 'flash-wrong'); }, 460);
+    }
+  }
+
+  function showToast() {
+    wrongToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => wrongToast.classList.remove('show'), 700);
+  }
+
+  // 凑齐 3 只后，弹出「是否跟鸥走」选择
+  function showChoice() {
+    const r = rounds[round];
+    choiceText.innerHTML = '<b>' + r.name + '</b> 愿意跟 <b>' + NAMES[r.display] + '</b> 走吗？';
+    choiceOverlay.classList.add('show');
+  }
+
+  // yes=愿意跟走（成功牵手）；no=挣脱离开（失败）
+  function chooseFollow(yes) {
+    choiceOverlay.classList.remove('show');
+    const group = tiles.filter(t => t.picked);
+    if (yes) {
+      group.forEach(t => { t.gone = true; t.el.classList.add('gone'); });
+      completed++;
+    } else {
+      group.forEach(t => { t.gone = true; t.el.classList.add('flee'); });
+      miss++; missText.textContent = miss;
+    }
+    setTimeout(() => {
+      group.forEach(t => { if (t.el.parentNode) t.el.parentNode.removeChild(t.el); });
+      advance();
+    }, 500);
+  }
+
+  // 推进到下一组（或结算）
+  function advance() {
+    round++;
+    if (round >= ROUNDS) { finish(); return; }
+    setTarget();
+    updateHud();
+    reshuffleRemaining();
+  }
+
+  function updateHud() {
+    timeText.textContent = timeLeft + 's';
+    missText.textContent = miss;
+    proText.textContent = completed + '/' + ROUNDS;
+  }
+
+  // 找到一组后，把剩余牌重新打乱位置，增加后续寻找难度
+  function reshuffleRemaining() {
+    const remain = tiles.filter(t => !t.gone);
+    shuffle(remain);
+    remain.forEach(t => {
+      t.el.style.setProperty('--rot', randRot());
+      deckEl.appendChild(t.el);
+    });
+  }
+
+  function updateTime() {
+    timeText.textContent = timeLeft + 's';
+    if (timeLeft <= 10) timeText.classList.add('danger');
+    else timeText.classList.remove('danger');
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    timeLeft = TIME_LIMIT;
+    updateTime();
+    timer = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) { timeLeft = 0; updateTime(); lose(); return; }
+      updateTime();
+    }, 1000);
+  }
+
+  function finish() {
+    clearInterval(timer); over = true;
+    const allOk = completed >= ROUNDS;
+    document.getElementById('overTitle').textContent = allOk ? '全部成功牵手！' : '游戏结束';
+    document.getElementById('overText').textContent =
+      '成功牵手 ' + completed + '/' + ROUNDS + ' 组，失误 ' + miss + ' 次，用时 ' + (TIME_LIMIT - timeLeft) + ' 秒。';
+    overOverlay.classList.add('show');
+  }
+
+  function lose() {
+    clearInterval(timer); over = true;
+    document.getElementById('overTitle').textContent = '时间到啦！';
+    document.getElementById('overText').textContent =
+      '成功牵手 ' + completed + '/' + ROUNDS + ' 组，失误 ' + miss + ' 次，再接再厉～';
+    overOverlay.classList.add('show');
+  }
+
+  function startGame() {
+    overOverlay.classList.remove('show');
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('gamePage').classList.remove('hidden');
+    document.getElementById('backBtn').classList.remove('hidden');
+    clearInterval(timer);
+    miss = 0; round = 0; completed = 0; over = false; started = false;
+    rounds = buildRounds();
+    renderDeck();
+    setTarget();
+    timeText.classList.remove('danger');
+    timeText.textContent = TIME_LIMIT + 's';
+    updateHud();
+  }
+
+  function goHome() {
+    clearInterval(timer);
+    window.location.href = 'index.html';
+  }
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', startGame);
+  document.getElementById('overHomeBtn').addEventListener('click', goHome);
+  document.getElementById('followYes').addEventListener('click', () => chooseFollow(true));
+  document.getElementById('followNo').addEventListener('click', () => chooseFollow(false));
+
+  // 防止手机端双击缩放
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e) {
+    const t = e.target;
+    if (t && t.closest && t.closest('button, a')) return;
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+</script>
+</body>
+</html>

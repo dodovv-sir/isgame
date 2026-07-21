@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>努努对对碰</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+  :root {
+    --blue: #5b8def;
+    --blue-deep: #3a6fd8;
+    --green: #4cc9a0;
+    --green-deep: #2fa882;
+  }
+
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, #dce8f7 0%, #e6f3ee 100%);
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: flex-start;
+    color: #2d3a4b;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-shell {
+    width: 100%; max-width: 440px; min-height: 100vh;
+    background: var(--bg, #eef6ff);
+    position: relative; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(91,141,239,0.22);
+  }
+  @media (min-width: 600px) { .app-shell { min-height: auto; border-radius: 32px; margin: 20px 0; } }
+
+  /* 顶部返回条 */
+  .top-bar {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--green) 100%);
+    padding: calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .back-btn {
+    width: 34px; height: 34px; border-radius: 10px; border: none;
+    background: rgba(255,255,255,0.22); color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .back-btn svg { width: 18px; height: 18px; }
+  .top-bar .ttl { color: #fff; font-size: 17px; font-weight: 800; letter-spacing: 1px; }
+
+  .game-wrapper { width: 100%; }
+
+  .game-page { display: none; flex-direction: column; }
+  .game-page.active { display: flex; }
+
+  /* 首页 */
+  #homePage { flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px 20px; min-height: 70vh; background: rgba(255,255,255,0.9); }
+  .home-illust { width: 120px; height: 120px; margin-bottom: 18px; }
+  .game-title { font-size: 2.4rem; color: #4a8fe7; font-weight: 800; margin-bottom: 8px; text-shadow: 2px 2px 5px rgba(74,143,231,0.18); }
+  .home-sub { font-size: 13px; color: #8a98a8; margin-bottom: 26px; line-height: 1.5; max-width: 280px; }
+  .start-btn {
+    background: linear-gradient(135deg, #4a8fe7, #6ba2f0); color: white; border: none; border-radius: 20px;
+    padding: 18px 46px; font-size: 1.3rem; font-weight: bold; cursor: pointer; transition: all 0.3s;
+    box-shadow: 0 10px 25px rgba(74,143,231,0.3); position: relative; overflow: hidden;
+  }
+  .start-btn:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 15px 30px rgba(74,143,231,0.4); }
+
+  /* 游戏页 */
+  #gamePage { flex-direction: column; background: rgba(255,255,255,0.96); min-height: 88vh; }
+  .game-container { flex: 1; display: flex; flex-direction: column; width: 100%; padding: 14px; }
+
+  .game-header { display: flex; justify-content: space-between; background: linear-gradient(135deg, #4a8fe7, #6ba2f0); color: white; padding: 14px 16px; border-radius: 16px; margin-bottom: 10px; box-shadow: 0 6px 12px rgba(74,143,231,0.25); }
+  .header-item { text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .header-label { font-size: 0.8rem; opacity: 0.9; margin-bottom: 4px; font-weight: 600; }
+  .header-value { font-size: 1.6rem; font-weight: bold; color: #ffeb3b; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+
+  .controls { display: flex; gap: 10px; margin-bottom: 12px; }
+  .control-btn { flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: all 0.3s; color: white; }
+  .control-btn.hint { background: linear-gradient(135deg, #4a8fe7, #6ba2f0); box-shadow: 0 4px 8px rgba(74,143,231,0.3); }
+  .control-btn.pause { background: linear-gradient(135deg, #ff8b94, #ffaaa5); box-shadow: 0 4px 8px rgba(255,139,148,0.3); }
+  .control-btn:hover { transform: translateY(-2px); }
+
+  .correct-feedback { text-align: center; padding: 8px 0; margin-bottom: 6px; }
+  .correct-text { font-size: 1.1rem; color: #666; font-weight: bold; }
+  .correct-count { font-size: 1.8rem; color: #ff6b6b; margin-left: 6px; font-weight: 800; }
+
+  .game-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .bottles-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 12px; }
+
+  .target-row, .guess-row, .bottle-pool { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; padding: 10px 0; overflow: hidden; }
+  .target-row { min-height: 86px; }
+  .guess-row { min-height: 86px; }
+  .bottle-pool { min-height: 86px; margin-bottom: 6px; }
+
+  .bottle-slot { width: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; transition: all 0.2s ease; position: relative; cursor: pointer; flex-shrink: 0; overflow: hidden; }
+  .bottle-item { width: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; cursor: pointer; transition: all 0.2s; position: relative; z-index: 1; flex-shrink: 0; overflow: hidden; }
+  .bottle-slot img, .bottle-item img { width: 100%; height: auto; display: block; }
+
+  .target-slot { background: linear-gradient(135deg, #a8e6cf, #8dd7c7); border: 3px solid #4a8fe7; box-shadow: 0 4px 8px rgba(74,143,231,0.15), inset 0 3px 6px rgba(255,255,255,0.4); }
+  .target-slot.revealed { background: linear-gradient(135deg, #8dd7c7, #4a8fe7); transform: scale(1.05); box-shadow: 0 6px 12px rgba(74,143,231,0.3); }
+
+  .guess-slot { background: linear-gradient(135deg, #ffd3b6, #ffaaa5); border: 3px solid #ff8b94; box-shadow: 0 4px 8px rgba(255,139,148,0.15), inset 0 3px 6px rgba(255,255,255,0.4); }
+  .guess-slot.empty { background: rgba(255,255,255,0.8); border: 3px dashed #ccc; }
+  .guess-slot.empty::after { content: '+'; font-size: 1.6rem; color: #aaa; position: absolute; }
+  .guess-slot.drag-over { background: rgba(74,143,231,0.3); border-color: #4a8fe7; transform: scale(1.05); box-shadow: 0 0 12px rgba(74,143,231,0.5); }
+
+  .bottle-item { background: linear-gradient(135deg, #6ba2f0, #4a8fe7); border: 3px solid rgba(255,255,255,0.8); box-shadow: 0 4px 8px rgba(74,143,231,0.2), inset 0 3px 6px rgba(255,255,255,0.3); }
+  .bottle-item.selected { transform: scale(1.05); box-shadow: 0 0 12px rgba(74,143,231,0.8); border-color: #ffeb3b; }
+  .bottle-item:active, .bottle-item.dragging { transform: scale(0.95) rotate(5deg); opacity: 0.8; box-shadow: 0 8px 16px rgba(74,143,231,0.4), inset 0 3px 6px rgba(255,255,255,0.3); z-index: 1000; position: fixed; pointer-events: none; }
+  .bottle-item.used { opacity: 0.3; cursor: not-allowed; transform: none !important; }
+
+  .action-area { text-align: center; padding: 12px 0; flex-shrink: 0; }
+  #checkBtn { background: linear-gradient(135deg, #4a8fe7, #6ba2f0); color: white; border: none; border-radius: 14px; padding: 16px 40px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 15px rgba(74,143,231,0.3); margin: 0 auto; width: 100%; max-width: 250px; }
+  #checkBtn:hover:not(:disabled) { transform: translateY(-3px); }
+  #checkBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .drag-hint { text-align: center; color: #888; font-size: 0.82rem; margin-top: 6px; opacity: 0.85; flex-shrink: 0; }
+
+  .hint-animation { animation: hintPulse 1.5s ease; }
+  @keyframes hintPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 4px 8px rgba(74,143,231,0.15); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px #4a8fe7; }
+  }
+
+  /* 弹窗 */
+  .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.3s ease; }
+  .popup-content { background: white; padding: 28px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); min-width: 280px; max-width: 88%; text-align: center; animation: popupIn 0.3s ease; }
+  .popup-content h3 { color: #4a8fe7; margin-bottom: 16px; font-size: 1.4rem; }
+  .popup-content p { color: #666; font-size: 0.95rem; line-height: 1.5; margin-bottom: 8px; }
+  .popup-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+  .popup-btn { padding: 13px 24px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: bold; cursor: pointer; transition: all 0.3s; width: 100%; color: white; }
+  .popup-btn.confirm { background: linear-gradient(135deg, #4a8fe7, #6ba2f0); }
+  .popup-btn.cancel { background: #f0f0f0; color: #666; }
+  .popup-btn.continue { background: linear-gradient(135deg, #4a8fe7, #6ba2f0); }
+  .popup-btn.home { background: linear-gradient(135deg, #ff8b94, #ffaaa5); }
+  .popup-btn.restart { background: linear-gradient(135deg, #a8e6cf, #8dd7c7); }
+  .popup-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+
+  @keyframes popupIn { from { opacity: 0; transform: translateY(-20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goHome()" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="ttl">努努对对碰</div>
+  </div>
+
+  <div class="game-wrapper" id="gameContainer">
+    <!-- 首页 -->
+    <div id="homePage" class="game-page active">
+      <svg class="home-illust" viewBox="0 0 120 120" fill="none" stroke="#4a8fe7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="22" y="34" width="34" height="52" rx="12" fill="#e3edff"/>
+        <rect x="64" y="34" width="34" height="52" rx="12" fill="#e3f7ef"/>
+        <path d="M39 56h0M39 68h0" stroke-width="4"/>
+        <path d="M81 56h0M81 68h0" stroke-width="4"/>
+        <path d="M30 14l6 8M90 14l-6 8" stroke="#4cc9a0"/>
+        <circle cx="39" cy="22" r="4" fill="#4cc9a0" stroke="none"/>
+        <circle cx="81" cy="22" r="4" fill="#4cc9a0" stroke="none"/>
+      </svg>
+      <h1 class="game-title">努努对对碰</h1>
+      <p class="home-sub">记住图案顺序，把瓶子按正确顺序排好，<br>难度逐关递增，挑战你的记忆力！</p>
+      <button class="start-btn" id="startBtn">开始游戏</button>
+    </div>
+
+    <!-- 游戏页 -->
+    <div id="gamePage" class="game-page">
+      <div class="game-container">
+        <div class="game-header">
+          <div class="header-item"><div class="header-label">关卡</div><div class="header-value" id="currentLevel">1</div></div>
+          <div class="header-item"><div class="header-label">用时</div><div class="header-value" id="timer">00:00</div></div>
+          <div class="header-item"><div class="header-label">提示</div><div class="header-value" id="hintCount">3</div></div>
+        </div>
+
+        <div class="controls">
+          <button class="control-btn hint" id="hintBtn">提示</button>
+          <button class="control-btn pause" id="pauseBtn">暂停</button>
+        </div>
+
+        <div class="correct-feedback">
+          <span class="correct-text">正确个数:</span>
+          <span class="correct-count" id="correctCount">0</span>
+        </div>
+
+        <div class="game-content">
+          <div class="bottles-container">
+            <div class="target-row" id="targetRow"></div>
+            <div class="guess-row" id="guessRow"></div>
+            <div class="bottle-pool" id="bottlePool"></div>
+            <div class="drag-hint">可拖拽或点击选择瓶子，再点击空位放置</div>
+          </div>
+          <div class="action-area">
+            <button id="checkBtn">检查答案</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 提示弹窗 -->
+    <div id="hintPopup" class="popup-overlay">
+      <div class="popup-content">
+        <h3>提示</h3>
+        <div id="hintMessage">是否使用提示？</div>
+        <div class="popup-buttons">
+          <button class="popup-btn confirm" id="useHintBtn">使用提示</button>
+          <button class="popup-btn cancel" id="cancelHintBtn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 暂停弹窗 -->
+    <div id="pausePopup" class="popup-overlay">
+      <div class="popup-content">
+        <h3>游戏暂停</h3>
+        <div class="popup-buttons">
+          <button class="popup-btn continue" id="continueBtn">继续游戏</button>
+          <button class="popup-btn home" id="homeBtn">回到首页</button>
+          <button class="popup-btn restart" id="restartPopupBtn">重新开始</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通关弹窗 -->
+    <div id="successPopup" class="popup-overlay">
+      <div class="popup-content">
+        <h3>恭喜通关！</h3>
+        <div id="successMessage"></div>
+        <div class="popup-buttons">
+          <button class="popup-btn home" id="successHomeBtn">回到首页</button>
+          <button class="popup-btn restart" id="successRestartBtn">重新开始</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 正确弹窗 -->
+    <div id="correctPopup" class="popup-overlay">
+      <div class="popup-content">
+        <h3>完全正确！</h3>
+        <p>正在进入下一关...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+class NuNuMatchGame {
+  constructor(containerId, config = {}) {
+    this.defaultConfig = {
+      bottleImages: [],
+      bottleEmojis: ['🌱','🧩','🦐','🍄','🥭','🦉','🦈','🐑','🐱','🐶','🐎','🍰'],
+      startBottles: 2,
+      maxBottles: 8,
+      poolExtra: 0,
+      maxHints: 3,
+      hintCooldown: 30,
+      maxLevel: 10
+    };
+    this.config = { ...this.defaultConfig, ...config };
+    this.container = document.getElementById(containerId);
+    if (!this.container) throw new Error(`容器元素 #${containerId} 不存在`);
+    this.initGameState();
+    this.bindMethods();
+    this.cacheDom();
+    this.initEventListeners();
+  }
+
+  initGameState() {
+    this.gameState = {
+      currentLevel: 1,
+      targetCount: this.config.startBottles,
+      poolCount: this.config.startBottles + this.config.poolExtra,
+      targetSequence: [],
+      currentGuess: [],
+      isCompleted: false,
+      gameStartTime: null,
+      timerInterval: null,
+      elapsedTime: 0,
+      dragging: false,
+      dragElement: null,
+      dragType: null,
+      dragFromIndex: -1,
+      dragFromPool: false,
+      dragClone: null,
+      pendingDrag: null,
+      clickSelectedBottle: null,
+      hintsRemaining: this.config.maxHints,
+      lastHintTime: 0,
+      hintedPositions: [],
+      maxLevelReached: false,
+      isPaused: false,
+      isShowingHint: false,
+      isShowingPause: false
+    };
+    this.useImages = this.config.bottleImages && this.config.bottleImages.length > 0;
+    this.bottleItems = this.useImages ? this.config.bottleImages : this.config.bottleEmojis;
+  }
+
+  bindMethods() {
+    this.startGame = this.startGame.bind(this);
+    this.checkAnswer = this.checkAnswer.bind(this);
+    this.showHintPopup = this.showHintPopup.bind(this);
+    this.showPausePopup = this.showPausePopup.bind(this);
+    this.resumeGame = this.resumeGame.bind(this);
+    this.goToHome = this.goToHome.bind(this);
+    this.restartGame = this.restartGame.bind(this);
+    this.initDragAndDrop = this.initDragAndDrop.bind(this);
+    this.prepareDrag = this.prepareDrag.bind(this);
+    this.beginDrag = this.beginDrag.bind(this);
+    this.handleMove = this.handleMove.bind(this);
+    this.handleEnd = this.handleEnd.bind(this);
+    this.updateTimer = this.updateTimer.bind(this);
+    this.closeAllPopups = this.closeAllPopups.bind(this);
+  }
+
+  cacheDom() {
+    this.dom = {
+      homePage: document.getElementById('homePage'),
+      gamePage: document.getElementById('gamePage'),
+      startBtn: document.getElementById('startBtn'),
+      targetRow: document.getElementById('targetRow'),
+      guessRow: document.getElementById('guessRow'),
+      bottlePool: document.getElementById('bottlePool'),
+      currentLevel: document.getElementById('currentLevel'),
+      timer: document.getElementById('timer'),
+      correctCount: document.getElementById('correctCount'),
+      checkBtn: document.getElementById('checkBtn'),
+      hintBtn: document.getElementById('hintBtn'),
+      hintCount: document.getElementById('hintCount'),
+      pauseBtn: document.getElementById('pauseBtn'),
+      hintPopup: document.getElementById('hintPopup'),
+      hintMessage: document.getElementById('hintMessage'),
+      useHintBtn: document.getElementById('useHintBtn'),
+      cancelHintBtn: document.getElementById('cancelHintBtn'),
+      pausePopup: document.getElementById('pausePopup'),
+      continueBtn: document.getElementById('continueBtn'),
+      homeBtn: document.getElementById('homeBtn'),
+      restartPopupBtn: document.getElementById('restartPopupBtn'),
+      successPopup: document.getElementById('successPopup'),
+      successMessage: document.getElementById('successMessage'),
+      successHomeBtn: document.getElementById('successHomeBtn'),
+      successRestartBtn: document.getElementById('successRestartBtn'),
+      correctPopup: document.getElementById('correctPopup')
+    };
+  }
+
+  initEventListeners() {
+    this.dom.startBtn.addEventListener('click', this.startGame);
+    this.dom.checkBtn.addEventListener('click', this.checkAnswer);
+    this.dom.hintBtn.addEventListener('click', this.showHintPopup);
+    this.dom.pauseBtn.addEventListener('click', this.showPausePopup);
+
+    this.dom.useHintBtn.addEventListener('click', () => this.useHint());
+    this.dom.cancelHintBtn.addEventListener('click', () => this.closePopup('hint'));
+
+    this.dom.continueBtn.addEventListener('click', this.resumeGame);
+    this.dom.homeBtn.addEventListener('click', this.goToHome);
+    this.dom.restartPopupBtn.addEventListener('click', this.restartGame);
+
+    this.dom.successHomeBtn.addEventListener('click', this.goToHome);
+    this.dom.successRestartBtn.addEventListener('click', this.restartGame);
+
+    this.dom.hintPopup.addEventListener('click', (e) => { if (e.target === this.dom.hintPopup) this.closePopup('hint'); });
+    this.dom.pausePopup.addEventListener('click', (e) => { if (e.target === this.dom.pausePopup) this.closePopup('pause'); });
+    this.dom.successPopup.addEventListener('click', (e) => { if (e.target === this.dom.successPopup) this.closePopup('success'); });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !this.dom.checkBtn.disabled) this.checkAnswer();
+      if (e.key === 'h' || e.key === 'H') this.showHintPopup();
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') this.showPausePopup();
+    });
+
+    document.body.addEventListener('touchmove', (e) => {
+      if (this.dom.gamePage.classList.contains('active') && !this.gameState.dragging) e.preventDefault();
+    }, { passive: false });
+  }
+
+  showPopup(type) {
+    this.closeAllPopups();
+    switch(type) {
+      case 'hint': this.gameState.isShowingHint = true; this.dom.hintPopup.style.display = 'flex'; break;
+      case 'pause': this.gameState.isShowingPause = true; this.dom.pausePopup.style.display = 'flex'; this.gameState.isPaused = true; this.stopGameTimer(); break;
+      case 'success': this.dom.successPopup.style.display = 'flex'; break;
+      case 'correct':
+        this.dom.correctPopup.style.display = 'flex';
+        setTimeout(() => { this.closePopup('correct'); }, 1500);
+        break;
+    }
+  }
+
+  closePopup(type) {
+    switch(type) {
+      case 'hint': this.gameState.isShowingHint = false; this.dom.hintPopup.style.display = 'none'; break;
+      case 'pause': this.gameState.isShowingPause = false; this.dom.pausePopup.style.display = 'none'; break;
+      case 'success': this.dom.successPopup.style.display = 'none'; break;
+      case 'correct': this.dom.correctPopup.style.display = 'none'; break;
+    }
+  }
+
+  closeAllPopups() {
+    this.closePopup('hint'); this.closePopup('pause'); this.closePopup('success'); this.closePopup('correct');
+  }
+
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+  }
+
+  shuffleArray(array) {
+    const a = [...array];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  getRandomElement(array) { return array[Math.floor(Math.random() * array.length)]; }
+
+  showHintPopup() {
+    if (this.gameState.isCompleted || this.gameState.hintsRemaining <= 0) return;
+    const now = Date.now();
+    if (now - this.gameState.lastHintTime < this.config.hintCooldown * 1000) {
+      const remaining = Math.ceil((this.config.hintCooldown * 1000 - (now - this.gameState.lastHintTime)) / 1000);
+      this.dom.hintMessage.textContent = `提示冷却中，请等待${remaining}秒`;
+      this.dom.useHintBtn.disabled = true;
+    } else {
+      this.dom.hintMessage.textContent = `是否使用提示？剩余${this.gameState.hintsRemaining}次`;
+      this.dom.useHintBtn.disabled = false;
+    }
+    this.showPopup('hint');
+  }
+
+  useHint() {
+    if (this.gameState.hintsRemaining <= 0) return;
+    const now = Date.now();
+    if (now - this.gameState.lastHintTime < this.config.hintCooldown * 1000) return;
+
+    let wrongPositions = [];
+    for (let i = 0; i < this.gameState.targetCount; i++) {
+      if (this.gameState.currentGuess[i] !== this.gameState.targetSequence[i] && !this.gameState.hintedPositions.includes(i)) wrongPositions.push(i);
+    }
+    if (wrongPositions.length === 0) {
+      for (let i = 0; i < this.gameState.targetCount; i++) {
+        if (!this.gameState.hintedPositions.includes(i)) wrongPositions.push(i);
+      }
+    }
+    if (wrongPositions.length === 0) { this.dom.hintMessage.textContent = "所有位置都已经提示过了！"; return; }
+
+    const hintIndex = wrongPositions[Math.floor(Math.random() * wrongPositions.length)];
+    const correctBottleIndex = this.gameState.targetSequence[hintIndex];
+
+    this.gameState.hintedPositions.push(hintIndex);
+    this.gameState.hintsRemaining--;
+    this.gameState.lastHintTime = now;
+
+    this.dom.hintCount.textContent = this.gameState.hintsRemaining;
+    if (this.gameState.hintsRemaining <= 0) this.dom.hintBtn.disabled = true;
+
+    const bottleItems = document.querySelectorAll('.bottle-item');
+    bottleItems.forEach(item => {
+      if (parseInt(item.dataset.index) === correctBottleIndex) {
+        item.classList.add('hint-animation');
+        setTimeout(() => item.classList.remove('hint-animation'), 1500);
+      }
+    });
+
+    const targetSlot = this.dom.targetRow.children[hintIndex];
+    if (targetSlot) {
+      targetSlot.classList.add('hint-animation');
+      setTimeout(() => targetSlot.classList.remove('hint-animation'), 1500);
+    }
+
+    if (this.gameState.currentGuess[hintIndex] === null) {
+      this.gameState.currentGuess[hintIndex] = correctBottleIndex;
+      this.updateUI();
+    }
+    this.closePopup('hint');
+  }
+
+  showPausePopup() { this.showPopup('pause'); }
+
+  resumeGame() {
+    this.gameState.isPaused = false;
+    this.closePopup('pause');
+    this.closePopup('success');
+    this.startGameTimer();
+    this.updateButtons();
+  }
+
+  goToHome() {
+    if (confirm('确定要回到首页吗？当前游戏进度将丢失。')) {
+      this.closeAllPopups();
+      this.stopGameTimer();
+      this.gameState.isPaused = false;
+      this.dom.gamePage.classList.remove('active');
+      this.dom.homePage.classList.add('active');
+    }
+  }
+
+  restartGame() {
+    if (confirm('确定要重新开始游戏吗？当前进度将丢失。')) {
+      this.closeAllPopups();
+      this.initGameState();
+      this.startGame();
+    }
+  }
+
+  createBottleElement(itemIndex) {
+    const bottle = document.createElement('div');
+    bottle.className = 'bottle-item';
+    bottle.dataset.index = itemIndex;
+    if (this.useImages) {
+      const img = document.createElement('img');
+      img.src = this.bottleItems[itemIndex];
+      img.alt = '';
+      bottle.appendChild(img);
+    } else {
+      bottle.textContent = this.bottleItems[itemIndex];
+    }
+    return bottle;
+  }
+
+  createBottleSlot(itemIndex = null, isTarget = false) {
+    const slot = document.createElement('div');
+    const hasBottle = itemIndex !== null;
+    if (isTarget) {
+      slot.className = 'bottle-slot target-slot';
+      if (this.gameState.isCompleted && hasBottle) {
+        if (this.useImages) {
+          const img = document.createElement('img');
+          img.src = this.bottleItems[itemIndex];
+          img.alt = '';
+          slot.appendChild(img);
+        } else {
+          slot.textContent = this.bottleItems[itemIndex];
+        }
+        slot.classList.add('revealed');
+      } else {
+        slot.textContent = '?';
+      }
+    } else {
+      slot.className = `bottle-slot guess-slot ${hasBottle ? '' : 'empty'}`;
+      if (hasBottle) {
+        if (this.useImages) {
+          const img = document.createElement('img');
+          img.src = this.bottleItems[itemIndex];
+          img.alt = '';
+          slot.appendChild(img);
+        } else {
+          slot.textContent = this.bottleItems[itemIndex];
+        }
+      }
+    }
+    return slot;
+  }
+
+  generateLevel(level, targetCount = null, poolCount = null) {
+    if (targetCount === null) {
+      const calculatedTarget = Math.min(this.config.startBottles + (level - 1), this.config.maxBottles);
+      this.gameState.targetCount = Math.min(calculatedTarget, this.bottleItems.length);
+    } else {
+      this.gameState.targetCount = Math.min(targetCount, this.bottleItems.length);
+    }
+    if (poolCount === null) this.gameState.poolCount = this.gameState.targetCount + this.config.poolExtra;
+    else this.gameState.poolCount = poolCount;
+
+    this.gameState.currentLevel = level;
+    this.gameState.hintsRemaining = this.config.maxHints;
+    this.gameState.hintedPositions = [];
+    this.dom.hintCount.textContent = this.gameState.hintsRemaining;
+    this.dom.hintBtn.disabled = false;
+    this.gameState.clickSelectedBottle = null;
+
+    const availableBottles = [...Array(this.bottleItems.length).keys()];
+    this.gameState.targetSequence = [];
+    for (let i = 0; i < this.gameState.targetCount; i++) {
+      if (availableBottles.length === 0) availableBottles.push(...Array(this.bottleItems.length).keys());
+      const randomIndex = Math.floor(Math.random() * availableBottles.length);
+      this.gameState.targetSequence.push(availableBottles[randomIndex]);
+      availableBottles.splice(randomIndex, 1);
+    }
+
+    const bottlePoolItems = [...this.gameState.targetSequence];
+    const extraNeeded = this.gameState.poolCount - this.gameState.targetCount;
+    const remainingBottles = Array.from(Array(this.bottleItems.length).keys())
+      .filter(index => !this.gameState.targetSequence.includes(index));
+    for (let i = 0; i < extraNeeded; i++) {
+      if (remainingBottles.length > 0) bottlePoolItems.push(this.getRandomElement(remainingBottles));
+      else bottlePoolItems.push(this.getRandomElement(this.gameState.targetSequence));
+    }
+    this.gameState.bottlePoolItems = this.shuffleArray(bottlePoolItems);
+    this.gameState.currentGuess = Array(this.gameState.targetCount).fill(null);
+  }
+
+  initLevel(level, customTargetCount = null, customPoolCount = null) {
+    if (this.gameState.maxLevelReached) { this.showMessage("游戏已通关！"); return; }
+    if (level > this.config.maxLevel) {
+      this.gameState.maxLevelReached = true;
+      this.showMessage(`恭喜！您已完成所有${this.config.maxLevel}关！`);
+      return;
+    }
+    this.generateLevel(level, customTargetCount, customPoolCount);
+    this.gameState.isCompleted = false;
+    this.gameState.clickSelectedBottle = null;
+    this.dom.correctCount.textContent = '0';
+    this.dom.currentLevel.textContent = this.gameState.currentLevel;
+    this.updateUI();
+  }
+
+  updateUI() { this.renderTargetRow(); this.renderGuessRow(); this.renderBottlePool(); this.updateButtons(); }
+
+  renderTargetRow() {
+    this.dom.targetRow.innerHTML = '';
+    for (let i = 0; i < this.gameState.targetCount; i++) {
+      const slot = this.createBottleSlot(this.gameState.isCompleted ? this.gameState.targetSequence[i] : null, true);
+      this.dom.targetRow.appendChild(slot);
+    }
+  }
+
+  renderGuessRow() {
+    this.dom.guessRow.innerHTML = '';
+    for (let i = 0; i < this.gameState.targetCount; i++) {
+      const hasBottle = this.gameState.currentGuess[i] !== null;
+      const slot = this.createBottleSlot(this.gameState.currentGuess[i], false);
+      if (hasBottle) {
+        slot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!this.gameState.isCompleted && !this.gameState.isPaused) {
+            this.gameState.currentGuess[i] = null; this.updateUI();
+          }
+        });
+        slot.addEventListener('mousedown', (e) => { if (!this.gameState.isPaused) this.prepareDrag(e, slot, this.gameState.currentGuess[i], false, i); });
+        slot.addEventListener('touchstart', (e) => { if (!this.gameState.isPaused) this.prepareDrag(e, slot, this.gameState.currentGuess[i], false, i); }, { passive: true });
+      } else {
+        slot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!this.gameState.isCompleted && this.gameState.clickSelectedBottle !== null && !this.gameState.isPaused) {
+            this.gameState.currentGuess[i] = this.gameState.clickSelectedBottle;
+            this.gameState.clickSelectedBottle = null;
+            document.querySelectorAll('.bottle-item.selected').forEach(item => item.classList.remove('selected'));
+            this.updateUI();
+          }
+        });
+      }
+      this.dom.guessRow.appendChild(slot);
+    }
+  }
+
+  renderBottlePool() {
+    this.dom.bottlePool.innerHTML = '';
+    const usedBottles = this.gameState.currentGuess.filter(b => b !== null);
+    this.gameState.bottlePoolItems.forEach((bottleIndex, index) => {
+      const isUsed = usedBottles.includes(bottleIndex);
+      const bottleElement = this.createBottleElement(bottleIndex);
+      if (isUsed) bottleElement.classList.add('used');
+      if (!isUsed) {
+        bottleElement.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!this.gameState.isCompleted && !this.gameState.isPaused) {
+            document.querySelectorAll('.bottle-item.selected').forEach(item => item.classList.remove('selected'));
+            bottleElement.classList.add('selected');
+            this.gameState.clickSelectedBottle = bottleIndex;
+          }
+        });
+        bottleElement.addEventListener('mousedown', (e) => { if (!this.gameState.isPaused) this.prepareDrag(e, bottleElement, bottleIndex, true, index); });
+        bottleElement.addEventListener('touchstart', (e) => { if (!this.gameState.isPaused) this.prepareDrag(e, bottleElement, bottleIndex, true, index); }, { passive: true });
+      } else {
+        bottleElement.addEventListener('click', (e) => e.stopPropagation());
+        bottleElement.addEventListener('mousedown', (e) => e.stopPropagation());
+        bottleElement.addEventListener('touchstart', (e) => e.stopPropagation());
+      }
+      if (this.gameState.clickSelectedBottle === bottleIndex && !isUsed) bottleElement.classList.add('selected');
+      this.dom.bottlePool.appendChild(bottleElement);
+    });
+  }
+
+  updateTimer() {
+    if (this.gameState.gameStartTime && !this.gameState.isPaused) {
+      const now = Date.now();
+      this.gameState.elapsedTime = Math.floor((now - this.gameState.gameStartTime) / 1000);
+      this.dom.timer.textContent = this.formatTime(this.gameState.elapsedTime);
+    }
+  }
+
+  startGameTimer() {
+    if (this.gameState.timerInterval) clearInterval(this.gameState.timerInterval);
+    if (!this.gameState.gameStartTime) this.gameState.gameStartTime = Date.now();
+    this.gameState.timerInterval = setInterval(this.updateTimer, 1000);
+  }
+
+  stopGameTimer() {
+    if (this.gameState.timerInterval) { clearInterval(this.gameState.timerInterval); this.gameState.timerInterval = null; }
+  }
+
+  resetGameTimer() {
+    this.stopGameTimer();
+    this.gameState.gameStartTime = null;
+    this.gameState.elapsedTime = 0;
+    this.dom.timer.textContent = '00:00';
+  }
+
+  initDragAndDrop() {
+    document.removeEventListener('mousemove', this.handleMove);
+    document.removeEventListener('mouseup', this.handleEnd);
+    document.removeEventListener('touchmove', this.handleMove);
+    document.removeEventListener('touchend', this.handleEnd);
+    document.addEventListener('mousemove', this.handleMove);
+    document.addEventListener('mouseup', this.handleEnd);
+    document.addEventListener('touchmove', this.handleMove, { passive: false });
+    document.addEventListener('touchend', this.handleEnd);
+  }
+
+  // 仅记录起点，移动超过阈值才真正开始拖拽（避免轻触即拖、点击变拖）
+  prepareDrag(event, element, itemIndex, fromPool, index) {
+    if (this.gameState.isCompleted || this.gameState.isPaused || this.gameState.dragging) return;
+    let clientX, clientY;
+    if (event.type.includes('touch')) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; }
+    else { clientX = event.clientX; clientY = event.clientY; }
+    this.gameState.pendingDrag = {
+      element, itemIndex, fromPool, index,
+      startX: clientX, startY: clientY,
+      pointerId: event.pointerId || null
+    };
+  }
+
+  beginDrag() {
+    const p = this.gameState.pendingDrag;
+    if (!p) return;
+    this.gameState.clickSelectedBottle = null;
+    document.querySelectorAll('.bottle-item.selected').forEach(item => item.classList.remove('selected'));
+    this.gameState.dragging = true;
+    this.gameState.dragElement = p.element;
+    this.gameState.dragType = p.itemIndex;
+    this.gameState.dragFromIndex = p.index;
+    this.gameState.dragFromPool = p.fromPool;
+    this.gameState.dragClone = p.element.cloneNode(true);
+    this.gameState.dragClone.classList.add('dragging');
+    const rect = p.element.getBoundingClientRect();
+    this.gameState.dragClone.style.position = 'fixed';
+    this.gameState.dragClone.style.left = rect.left + 'px';
+    this.gameState.dragClone.style.top = rect.top + 'px';
+    this.gameState.dragClone.style.width = rect.width + 'px';
+    this.gameState.dragClone.style.height = rect.height + 'px';
+    this.gameState.dragClone.style.zIndex = '10000';
+    this.gameState.dragClone.style.pointerEvents = 'none';
+    document.body.appendChild(this.gameState.dragClone);
+  }
+
+  updateClonePosition(clientX, clientY) {
+    if (!this.gameState.dragClone) return;
+    // 克隆体偏移跟随指针（指尖下方稍偏），更贴合手指操作
+    const w = this.gameState.dragClone.offsetWidth;
+    const h = this.gameState.dragClone.offsetHeight;
+    this.gameState.dragClone.style.left = (clientX - w / 2) + 'px';
+    this.gameState.dragClone.style.top = (clientY - h / 2) + 'px';
+    this.updateHoverEffect(clientX, clientY);
+  }
+
+  // 命中检测：向外扩 10px 容差，并覆盖所有 guess 槽（含已占用，提示可交换）
+  updateHoverEffect(x, y) {
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const slots = document.querySelectorAll('.guess-slot');
+    let hoveredSlot = null;
+    slots.forEach(slot => {
+      const rect = slot.getBoundingClientRect();
+      const pad = 10;
+      if (x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad) hoveredSlot = slot;
+    });
+    if (hoveredSlot) hoveredSlot.classList.add('drag-over');
+  }
+
+  handleMove(event) {
+    if (this.gameState.isPaused || this.gameState.isCompleted) return;
+    let clientX, clientY;
+    if (event.type.includes('touch')) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; }
+    else { clientX = event.clientX; clientY = event.clientY; }
+
+    // 阈值判断：移动 > 6px 才进入真实拖拽
+    if (!this.gameState.dragging) {
+      const p = this.gameState.pendingDrag;
+      if (!p) return;
+      const dx = clientX - p.startX, dy = clientY - p.startY;
+      if (Math.sqrt(dx * dx + dy * dy) < 6) return;
+      event.preventDefault();
+      this.beginDrag();
+      if (!this.gameState.dragging) return;
+    }
+    event.preventDefault();
+    this.updateClonePosition(clientX, clientY);
+  }
+
+  handleEnd(event) {
+    // 未真正进入拖拽（仅点击）：当作点击处理
+    if (!this.gameState.dragging) {
+      this.gameState.pendingDrag = null;
+      return;
+    }
+    event.preventDefault();
+    let clientX, clientY;
+    if (event.type.includes('touch')) { clientX = event.changedTouches[0].clientX; clientY = event.changedTouches[0].clientY; }
+    else { clientX = event.clientX; clientY = event.clientY; }
+    if (this.gameState.dragClone) { this.gameState.dragClone.remove(); this.gameState.dragClone = null; }
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+    const slots = document.querySelectorAll('.guess-slot');
+    let dropIndex = -1;
+    slots.forEach((slot, index) => {
+      const rect = slot.getBoundingClientRect();
+      const pad = 12;
+      if (clientX >= rect.left - pad && clientX <= rect.right + pad && clientY >= rect.top - pad && clientY <= rect.bottom + pad) dropIndex = index;
+    });
+    const usedBottles = document.querySelectorAll('.bottle-item.used');
+    let dropToBottleIndex = -1;
+    usedBottles.forEach((bottle, index) => {
+      const rect = bottle.getBoundingClientRect();
+      const pad = 12;
+      if (clientX >= rect.left - pad && clientX <= rect.right + pad && clientY >= rect.top - pad && clientY <= rect.bottom + pad) dropToBottleIndex = index;
+    });
+
+    if (dropIndex !== -1) {
+      if (this.gameState.currentGuess[dropIndex] === null) {
+        if (this.gameState.dragFromPool) this.gameState.currentGuess[dropIndex] = this.gameState.dragType;
+        else { this.gameState.currentGuess[dropIndex] = this.gameState.dragType; this.gameState.currentGuess[this.gameState.dragFromIndex] = null; }
+      } else {
+        if (!this.gameState.dragFromPool) {
+          const temp = this.gameState.currentGuess[dropIndex];
+          this.gameState.currentGuess[dropIndex] = this.gameState.dragType;
+          this.gameState.currentGuess[this.gameState.dragFromIndex] = temp;
+        } else {
+          this.gameState.currentGuess[dropIndex] = this.gameState.dragType;
+        }
+      }
+    } else if (dropToBottleIndex !== -1 && !this.gameState.dragFromPool) {
+      this.gameState.currentGuess[this.gameState.dragFromIndex] = null;
+    }
+
+    this.updateUI();
+    this.gameState.dragging = false;
+    this.gameState.dragElement = null;
+    this.gameState.dragType = null;
+    this.gameState.dragFromIndex = -1;
+    this.gameState.dragFromPool = false;
+    this.gameState.pendingDrag = null;
+  }
+
+  checkAnswer() {
+    if (this.gameState.isPaused) return;
+    const isComplete = !this.gameState.currentGuess.includes(null);
+    if (!isComplete) return;
+    let correctCount = 0;
+    for (let i = 0; i < this.gameState.targetCount; i++) {
+      if (this.gameState.currentGuess[i] === this.gameState.targetSequence[i]) correctCount++;
+    }
+    this.dom.correctCount.textContent = correctCount;
+    if (correctCount === this.gameState.targetCount) {
+      this.gameState.isCompleted = true;
+      this.renderTargetRow();
+      this.updateButtons();
+      if (this.gameState.currentLevel >= this.config.maxLevel) {
+        this.gameState.maxLevelReached = true;
+        this.dom.successMessage.innerHTML = `<p>您已成功完成所有${this.config.maxLevel}关！</p><p>总用时：${this.formatTime(this.gameState.elapsedTime)}</p>`;
+        this.showPopup('success');
+        this.stopGameTimer();
+        this.dom.checkBtn.disabled = true;
+        this.dom.checkBtn.textContent = '已通关';
+      } else {
+        this.showPopup('correct');
+        setTimeout(() => { this.closePopup('correct'); this.initLevel(this.gameState.currentLevel + 1); }, 1500);
+      }
+    }
+  }
+
+  updateButtons() {
+    const isComplete = !this.gameState.currentGuess.includes(null);
+    this.dom.checkBtn.disabled = this.gameState.isCompleted || !isComplete || this.gameState.isPaused;
+    this.dom.checkBtn.textContent = this.gameState.isCompleted ? '已通过' : '检查答案';
+  }
+
+  startGame() {
+    this.closeAllPopups();
+    this.dom.homePage.classList.remove('active');
+    this.dom.gamePage.classList.add('active');
+    this.resetGameTimer();
+    this.gameState.maxLevelReached = false;
+    this.gameState.currentLevel = 1;
+    this.gameState.isPaused = false;
+    this.initLevel(1);
+    this.initDragAndDrop();
+    this.startGameTimer();
+    this.updateButtons();
+  }
+
+  showMessage(message) { alert(message); }
+}
+
+function goHome() { window.location.href = 'index.html'; }
+
+const game = new NuNuMatchGame('gameContainer', {
+  bottleImages: ['nu/xia.png', 'nu/potato.png', 'nu/choulian.png', 'nu/weixiao.png', 'nu/tutu.png'],
+  startBottles: 3,
+  maxBottles: 5,
+  poolExtra: 0,
+  maxHints: 3,
+  hintCooldown: 30,
+  maxLevel: 3
+});
+</script>
+
+</body>
+</html>

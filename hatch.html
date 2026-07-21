@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>小草孵化中</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+
+  :root {
+    --blue: #5b8def;
+    --green: #4cc9a0;
+  }
+
+  html, body { height: 100%; width: 100%; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, var(--blue), var(--green));
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+  }
+
+  /* 游戏画布铺满全屏 */
+  #game { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* 顶栏 */
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
+    color: #fff;
+  }
+  .back-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; backdrop-filter: blur(4px); flex-shrink: 0;
+  }
+  .back-btn svg { width: 20px; height: 20px; stroke: #fff; }
+  .stat-group { display: flex; gap: 10px; }
+  .stat {
+    background: rgba(255,255,255,0.22); border-radius: 14px; padding: 6px 14px;
+    backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; min-width: 64px;
+  }
+  .stat .label { font-size: 10px; opacity: 0.85; }
+  .stat .value { font-size: 18px; font-weight: 800; }
+
+  /* 目标颜色提示 */
+  .goal-hint {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 66px); left: 50%;
+    transform: translateX(-50%); z-index: 15;
+    background: rgba(255,255,255,0.25); backdrop-filter: blur(6px);
+    border-radius: 20px; padding: 7px 18px; display: flex; align-items: center; gap: 8px;
+    color: #fff; font-size: 13px; white-space: nowrap;
+  }
+  .goal-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); }
+
+  /* 孵化进度条 */
+  .progress-wrap {
+    position: absolute; left: 16px; right: 16px;
+    top: calc(env(safe-area-inset-top, 0px) + 110px); z-index: 15;
+    height: 10px; background: rgba(255,255,255,0.25); border-radius: 10px; overflow: hidden;
+  }
+  .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #fff, #eafff6); border-radius: 10px; transition: width .25s ease; }
+
+  /* 通用覆盖层 */
+  .overlay {
+    position: absolute; inset: 0; z-index: 50;
+    background: rgba(20, 40, 60, 0.82);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.hidden { display: none; }
+
+  .panel {
+    background: #fff; border-radius: 28px; padding: 30px 24px; text-align: center;
+    max-width: 340px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    animation: pop .35s cubic-bezier(.2,1.3,.5,1) both;
+  }
+  @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .panel h2 { font-size: 23px; color: #2d3a4b; margin-bottom: 6px; }
+  .panel .big-img { width: 120px; height: 120px; margin: 6px auto 4px; object-fit: contain; }
+  .panel .emoji-big { margin-bottom: 6px; display: flex; align-items: center; justify-content: center; }
+  .panel .emoji-big svg { width: 60px; height: 60px; }
+  .panel .rule-list .rule-ico {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; margin-right: 8px; flex-shrink: 0;
+    background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    vertical-align: middle;
+  }
+  .panel .rule-list .rule-ico svg { width: 14px; height: 14px; }
+  .panel p { font-size: 14px; color: #6b7a8a; line-height: 1.7; margin: 8px 0 16px; }
+  .panel .rule-list { text-align: left; background: #f2f7ff; border-radius: 16px; padding: 14px 16px; margin: 0 0 18px; }
+  .panel .rule-list li { font-size: 13px; color: #4a5a6a; margin: 7px 0; list-style: none; line-height: 1.5; }
+  .panel .rule-list li b { color: var(--green); white-space: nowrap; }
+
+  .hatch-tip {
+    display: flex; align-items: center; gap: 7px;
+    background: #fff7e6; border: 1px solid #ffe2a8; border-radius: 12px;
+    padding: 9px 12px; margin: 4px 0 16px; font-size: 12.5px; color: #b07d00; line-height: 1.4;
+  }
+  .hatch-tip .tip-ico { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; }
+  .hatch-tip .tip-ico svg { width: 18px; height: 18px; }
+
+  .btn {
+    background: linear-gradient(135deg, var(--blue), var(--green));
+    color: #fff; border: none; border-radius: 50px; padding: 14px 36px;
+    font-size: 17px; font-weight: 800; cursor: pointer; width: 100%;
+    box-shadow: 0 8px 20px rgba(91,141,239,0.4);
+    transition: transform .15s ease;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.secondary { background: #eef2f8; color: #5b8def; box-shadow: none; margin-top: 10px; }
+
+  .final-score { font-size: 48px; font-weight: 900; background: linear-gradient(135deg, var(--blue), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 6px 0; }
+  .result-title { font-size: 22px; font-weight: 800; color: #2d3a4b; margin-bottom: 4px; }
+  .breakdown { font-size: 13px; color: #8a98a8; margin: 4px 0 18px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="back-btn" onclick="goHome()">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </div>
+  <div class="stat-group">
+    <div class="stat"><span class="label">得分</span><span class="value" id="scoreVal">0</span></div>
+    <div class="stat"><span class="label">时间</span><span class="value" id="timeVal">60</span></div>
+  </div>
+</div>
+
+<div class="goal-hint">
+  想吃
+  <span class="goal-dot" id="goalDot"></span>
+  <span id="goalName">绿</span>
+  色食物
+</div>
+
+<div class="progress-wrap"><div class="progress-bar" id="progBar"></div></div>
+
+<canvas id="game"></canvas>
+
+<!-- 开始 -->
+<div class="overlay" id="startOverlay">
+  <div class="panel">
+    <div class="emoji-big">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="#2fa882" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 58V30"/>
+        <path d="M32 34c-10-2-16-10-16-18 8 0 14 6 16 16"/>
+        <path d="M32 34c10-2 16-10 16-18-8 0-14 6-16 16"/>
+      </svg>
+    </div>
+    <h2>小草孵化中</h2>
+    <ul class="rule-list">
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#4cc9a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M12 7v5l3 2"/></svg></span>一颗小草蛋被包裹着，靠<b>吞食物</b>来孵化</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></span>顶部提示想吃的颜色，<b>只吃同色</b>才加分孵化</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#ff8fab" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8M16 8l-8 8"/></svg></span>吃错颜色会<b>扣减进度</b></li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#ffce54" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span>攒到 <b>41 分</b>即可成功孵化出小草！</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#8a98a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 3h6"/></svg></span>限时 60 秒，加油！</li>
+    </ul>
+    <button class="btn" onclick="startGame()">开始孵化</button>
+  </div>
+</div>
+
+<!-- 孵化成功弹框（可继续玩） -->
+<div class="overlay hidden" id="hatchOverlay">
+  <div class="panel">
+    <div class="emoji-big">
+      <svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke="#4cc9a0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="32" cy="32" r="26"/>
+        <path d="M22 32l7 7 13-15"/>
+      </svg>
+    </div>
+    <div class="result-title">孵化成功！</div>
+    <img class="big-img" src="img/isa.png" alt="小草">
+    <p>小草破壳而出啦！<br>继续玩耍还能刷更高分哦～</p>
+    <div class="hatch-tip"><span class="tip-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#e6a800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="#e6a800" stroke="none"/></svg></span>记得好好喂食，不然它还会变回蛋哦！</div>
+    <button class="btn" onclick="continueGame()">继续玩耍</button>
+    <button class="btn secondary" onclick="goHome()">返回首页</button>
+  </div>
+</div>
+
+<!-- 结束 -->
+<div class="overlay hidden" id="endOverlay">
+  <div class="panel" id="endPanel">
+    <div class="emoji-big" id="endEmoji"></div>
+    <div class="result-title" id="endTitle">孵化成功！</div>
+    <img class="big-img" id="endImg" src="img/isa.png" alt="" style="display:none">
+    <div class="final-score" id="finalScore">0</div>
+    <div class="breakdown" id="breakdown"></div>
+    <button class="btn" onclick="startGame()">再试一次</button>
+    <button class="btn secondary" onclick="goHome()">返回首页</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const COLORS = [
+    { name: '绿', fill: '#4cc9a0', dark: '#2fa882' },
+    { name: '蓝', fill: '#5b8def', dark: '#3a6fd8' },
+    { name: '粉', fill: '#ff8fab', dark: '#e86a8c' },
+    { name: '黄', fill: '#ffce54', dark: '#e6a800' }
+  ];
+  const GAME_TIME = 60;
+  const HATCH_SCORE = 41;
+  const EAT_GOOD = 10;
+  const EAT_BAD = -15;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  // isa.png 角色图
+  const isaImg = new Image();
+  isaImg.src = 'img/isa.png';
+  let isaLoaded = false;
+  isaImg.onload = () => isaLoaded = true;
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  let state = 'ready';
+  let hatched = false;
+  let score = 0, timeLeft = GAME_TIME;
+  let goalColorIdx = 0;
+  let egg = { x: 0, y: 0, r: 55, shake: 0, mouth: 0 };
+  let foods = [];
+  let effects = [];
+  let particles = [];
+  let lastTime = 0, timeAcc = 0, spawnAcc = 0, rafId = null;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+  function initParticles() {
+    particles = [];
+    for (let i = 0; i < 26; i++) {
+      particles.push({ x: Math.random() * W, y: Math.random() * H, r: rand(1, 3), s: rand(0.3, 1.1), a: rand(0.15, 0.5) });
+    }
+  }
+
+  function spawnFood() {
+    const idx = Math.floor(Math.random() * COLORS.length);
+    const size = rand(36, 48);
+    foods.push({
+      x: rand(size, W - size), y: -size, r: size / 2,
+      colorIdx: idx, vy: rand(2.6, 4.0) + (GAME_TIME - timeLeft) * 0.03,
+      rot: rand(0, Math.PI * 2), vr: rand(-0.04, 0.04)
+    });
+  }
+
+  function addEffect(x, y, text, color) { effects.push({ x, y, text, color, t: 0, life: 0.9 }); }
+
+  function updateGoal() {
+    goalColorIdx = (goalColorIdx + 1 + Math.floor(Math.random() * (COLORS.length - 1))) % COLORS.length;
+    const c = COLORS[goalColorIdx];
+    document.getElementById('goalDot').style.background = c.fill;
+    document.getElementById('goalName').textContent = c.name;
+  }
+
+  function updateScore() {
+    score = clamp(score, 0, 9999);
+    document.getElementById('scoreVal').textContent = score;
+    document.getElementById('progBar').style.width = Math.min(100, score / HATCH_SCORE * 100) + '%';
+  }
+
+  // ===== 绘制蛋壳（包裹态） =====
+  function drawEgg() {
+    const x = egg.x, y = egg.y, r = egg.r;
+    const sx = egg.shake > 0 ? Math.sin(Date.now() / 30) * egg.shake : 0;
+    ctx.save();
+    ctx.translate(x + sx, y);
+    // 阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath(); ctx.ellipse(0, r * 0.92, r * 0.7, 9, 0, 0, Math.PI * 2); ctx.fill();
+    // 蛋壳主体
+    const g = ctx.createLinearGradient(0, -r, 0, r);
+    g.addColorStop(0, '#fdfdfd'); g.addColorStop(1, '#e8eef5');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.05);
+    ctx.bezierCurveTo(r * 0.95, -r * 1.05, r, -r * 0.1, r * 0.78, r * 0.6);
+    ctx.bezierCurveTo(r * 0.6, r * 1.0, -r * 0.6, r * 1.0, -r * 0.78, r * 0.6);
+    ctx.bezierCurveTo(-r, -r * 0.1, -r * 0.95, -r * 1.05, 0, -r * 1.05);
+    ctx.closePath(); ctx.fill();
+    // 顶部直接长出两片叶子（像呆毛，底部粘连、鲜艳翠绿）
+    ctx.save();
+    ctx.fillStyle = '#2ecc71';
+    const topY = -r * 1.0;
+    // 左叶（从蛋顶中心长出）
+    ctx.beginPath();
+    ctx.moveTo(0, topY);
+    ctx.quadraticCurveTo(-r * 0.5, topY - r * 0.3, -r * 0.42, topY - r * 0.65);
+    ctx.quadraticCurveTo(-r * 0.05, topY - r * 0.3, 0, topY);
+    ctx.fill();
+    // 右叶（从蛋顶中心长出，与左叶底部相连）
+    ctx.beginPath();
+    ctx.moveTo(0, topY);
+    ctx.quadraticCurveTo(r * 0.5, topY - r * 0.3, r * 0.42, topY - r * 0.65);
+    ctx.quadraticCurveTo(r * 0.05, topY - r * 0.3, 0, topY);
+    ctx.fill();
+    ctx.restore();
+    // 斑点
+    ctx.fillStyle = 'rgba(120,160,200,0.25)';
+    ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.3, r * 0.13, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.35, r * 0.1, r * 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.1, r * 0.5, r * 0.08, 0, Math.PI * 2); ctx.fill();
+    // 裂纹（接近孵化）
+    const prog = score / HATCH_SCORE;
+    if (prog > 0.6) {
+      ctx.strokeStyle = 'rgba(90,120,150,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.9);
+      ctx.lineTo(-r * 0.15, -r * 0.3); ctx.lineTo(r * 0.1, -r * 0.1);
+      ctx.lineTo(-r * 0.05, r * 0.3);
+      ctx.stroke();
+    }
+    // 眼睛（从壳里探出）
+    ctx.fillStyle = '#2d3a4b';
+    ctx.beginPath(); ctx.arc(-r * 0.18, -r * 0.15, r * 0.06, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.18, -r * 0.15, r * 0.06, 0, Math.PI * 2); ctx.fill();
+    // 嘴
+    const m = egg.mouth;
+    ctx.fillStyle = '#ff7a9c';
+    ctx.beginPath(); ctx.ellipse(0, r * 0.02, r * 0.1, r * 0.05 * (1 + m * 3), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ===== 绘制已孵化角色（isa.png，等比自适应不拉伸） =====
+  function drawIsa() {
+    const x = egg.x, y = egg.y, r = egg.r;
+    const maxSize = r * 2.6; // 最大边长限制
+    ctx.save();
+    if (isaLoaded && isaImg.naturalWidth && isaImg.naturalHeight) {
+      // 按原始宽高比等比缩放，保持 width:100%;height:auto 效果，不拉伸变形
+      const ratio = isaImg.naturalWidth / isaImg.naturalHeight;
+      let w = maxSize, h = maxSize;
+      if (ratio >= 1) { h = w / ratio; } else { w = h * ratio; }
+      ctx.drawImage(isaImg, x - w / 2, y - h / 2, w, h);
+    } else {
+      // 兜底：画个绿圆
+      ctx.fillStyle = '#4cc9a0';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // 光环
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFood(f) {
+    const c = COLORS[f.colorIdx];
+    ctx.save();
+    ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    const r = f.r;
+    ctx.fillStyle = c.fill; ctx.strokeStyle = c.dark; ctx.lineWidth = 3;
+    const rad = r * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(-r + rad, -r);
+    ctx.arcTo(r, -r, r, r, rad); ctx.arcTo(r, r, -r, r, rad);
+    ctx.arcTo(-r, r, -r, -r, rad); ctx.arcTo(-r, -r, r, -r, rad);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.3, r * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function burst(x, y, color) {
+    for (let i = 0; i < 10; i++) {
+      particles.push({ x, y, r: rand(2, 4), s: 0, a: 1, vx: rand(-3.5, 3.5), vy: rand(-4, -1), burst: true, color });
+    }
+  }
+
+  function eatFood(f) {
+    egg.mouth = 1; egg.shake = f.colorIdx === goalColorIdx ? 0 : 3;
+    if (f.colorIdx === goalColorIdx) {
+      score += EAT_GOOD;
+      addEffect(f.x, f.y - 10, '+' + EAT_GOOD, '#ffffff');
+      burst(f.x, f.y, COLORS[f.colorIdx].fill);
+      updateGoal(); // 切换下一个想吃颜色 → 必须吃不同颜色
+    } else {
+      score = Math.max(0, score + EAT_BAD);
+      addEffect(f.x, f.y - 10, EAT_BAD, '#ffd0d0');
+    }
+    updateScore();
+    // 孵化判定：首次达到 41 分弹出成功弹框，可继续玩
+    if (score >= HATCH_SCORE && !hatched) { showHatchModal(); }
+  }
+
+  function update(dt) {
+    particles.forEach(p => {
+      if (p.burst) { p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.a -= 0.04; }
+      else { p.y += p.s; if (p.y > H) { p.y = 0; p.x = Math.random() * W; } }
+    });
+    particles = particles.filter(p => !(p.burst && p.a <= 0));
+
+    const elapsed = GAME_TIME - timeLeft;
+    const spawnEvery = Math.max(0.4, 1.0 - elapsed * 0.012);
+    spawnAcc += dt;
+    if (spawnAcc >= spawnEvery) { spawnAcc = 0; spawnFood(); if (Math.random() < 0.4) spawnFood(); }
+
+    for (let i = foods.length - 1; i >= 0; i--) {
+      const f = foods[i];
+      f.y += f.vy; f.rot += f.vr;
+      if (dist(f.x, f.y, egg.x, egg.y) < f.r + egg.r * 0.7) {
+        eatFood(f); foods.splice(i, 1); continue;
+      }
+      if (f.y - f.r > H) foods.splice(i, 1);
+    }
+
+    effects.forEach(e => e.t += dt);
+    effects = effects.filter(e => e.t < e.life);
+    egg.mouth = Math.max(0, egg.mouth - dt * 4);
+    egg.shake = Math.max(0, egg.shake - dt * 6);
+  }
+
+  function render() {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#5b8def'); g.addColorStop(1, '#4cc9a0');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.a);
+      ctx.fillStyle = p.burst ? p.color : 'rgba(255,255,255,0.7)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    foods.forEach(drawFood);
+
+    // 状态：分数达标则画 isa，否则画蛋
+    if (score >= HATCH_SCORE) drawIsa(); else drawEgg();
+
+    effects.forEach(e => {
+      ctx.globalAlpha = 1 - e.t / e.life;
+      ctx.fillStyle = e.color; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(e.text, e.x, e.y - e.t * 40);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(ts) {
+    if (state !== 'playing') return;
+    if (!lastTime) lastTime = ts;
+    let dt = Math.min((ts - lastTime) / 1000, 0.05);
+    lastTime = ts;
+
+    timeAcc += dt;
+    if (timeAcc >= 1) {
+      timeAcc -= 1; timeLeft--;
+      document.getElementById('timeVal').textContent = timeLeft;
+      if (timeLeft <= 0) { endGame(); return; }
+    }
+    update(dt); render();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function moveTo(px) { egg.x = clamp(px, egg.r, W - egg.r); }
+  canvas.addEventListener('mousemove', e => { if (state === 'playing') moveTo(e.clientX); });
+  canvas.addEventListener('touchmove', e => { if (state === 'playing') { e.preventDefault(); moveTo(e.touches[0].clientX); } }, { passive: false });
+
+  function startGame() {
+    resize();
+    hatched = false;
+    score = 0; timeLeft = GAME_TIME; goalColorIdx = Math.floor(Math.random() * COLORS.length);
+    egg.r = Math.min(55, W * 0.16); egg.x = W / 2; egg.y = H - egg.r - 70; egg.mouth = 0; egg.shake = 0;
+    foods = []; effects = []; spawnAcc = 0;
+    initParticles(); updateScore(); updateGoal();
+    document.getElementById('timeVal').textContent = timeLeft;
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.getElementById('endOverlay').classList.add('hidden');
+    state = 'playing'; lastTime = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // 孵化成功弹框（不结束游戏，可继续）
+  function showHatchModal() {
+    hatched = true;
+    state = 'hatched'; // 暂停游戏循环
+    if (rafId) cancelAnimationFrame(rafId);
+    document.getElementById('hatchOverlay').classList.remove('hidden');
+  }
+
+  // 关闭弹框，继续游戏
+  function continueGame() {
+    document.getElementById('hatchOverlay').classList.add('hidden');
+    state = 'playing';
+    lastTime = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+  window.continueGame = continueGame;
+
+  function endGame() {
+    state = 'over';
+    if (rafId) cancelAnimationFrame(rafId);
+    const ok = score >= HATCH_SCORE;
+    document.getElementById('endImg').style.display = ok ? 'block' : 'none';
+    const endEmoji = document.getElementById('endEmoji');
+    endEmoji.style.display = ok ? 'none' : 'flex';
+    endEmoji.innerHTML = ok ? '' : '<svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke="#2fa882" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 8c-12 0-20 9-20 22 0 12 8 22 20 22s20-10 20-22C52 17 44 8 32 8z"/><circle cx="25" cy="30" r="2.5" fill="#2fa882" stroke="none"/><circle cx="39" cy="30" r="2.5" fill="#2fa882" stroke="none"/><path d="M27 38c1.5 2 8.5 2 10 0"/></svg>';
+    document.getElementById('endTitle').textContent = ok ? '孵化成功！' : '孵化失败…';
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('breakdown').textContent = ok
+      ? '小草成功破壳而出啦！'
+      : '距离 41 分还差 ' + (HATCH_SCORE - score) + ' 分，再接再厉！';
+    document.getElementById('endOverlay').classList.remove('hidden');
+  }
+
+  window.startGame = startGame;
+  resize(); initParticles(); updateGoal(); render();
+})();
+
+function goHome() { window.location.href = 'index.html'; }
+</script>
+
+</body>
+</html>

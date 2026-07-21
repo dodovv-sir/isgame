@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>小草吞吞乐</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+
+  :root {
+    --blue: #5b8def;
+    --green: #4cc9a0;
+  }
+
+  html, body { height: 100%; width: 100%; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, var(--blue), var(--green));
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+  }
+
+  /* 游戏画布铺满全屏 */
+  #game { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* 顶栏 */
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
+    color: #fff;
+  }
+  .back-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; backdrop-filter: blur(4px); flex-shrink: 0;
+  }
+  .back-btn svg { width: 20px; height: 20px; stroke: #fff; }
+  .stat-group { display: flex; gap: 10px; }
+  .stat {
+    background: rgba(255,255,255,0.22); border-radius: 14px; padding: 6px 14px;
+    backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; min-width: 64px;
+  }
+  .stat .label { font-size: 10px; opacity: 0.85; }
+  .stat .value { font-size: 18px; font-weight: 800; }
+
+  /* 图例提示（固定分数说明） */
+  .legend {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 66px); left: 50%;
+    transform: translateX(-50%); z-index: 15;
+    background: rgba(255,255,255,0.25); backdrop-filter: blur(6px);
+    border-radius: 18px; padding: 7px 16px; display: flex; align-items: center; gap: 10px;
+    color: #fff; font-size: 12px; white-space: nowrap; flex-wrap: wrap; justify-content: center; max-width: 92vw;
+  }
+  .legend .lg { display: flex; align-items: center; gap: 4px; }
+  .legend .lg img { width: 20px; height: 20px; border-radius: 5px; }
+  .legend .lg b { font-weight: 800; }
+
+  /* 通用覆盖层 */
+  .overlay {
+    position: absolute; inset: 0; z-index: 50;
+    background: rgba(20, 40, 60, 0.82);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.hidden { display: none; }
+
+  .panel {
+    background: #fff; border-radius: 28px; padding: 30px 24px; text-align: center;
+    max-width: 340px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    animation: pop .35s cubic-bezier(.2,1.3,.5,1) both;
+  }
+  @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .panel h2 { font-size: 23px; color: #2d3a4b; margin-bottom: 6px; }
+  .panel .big-img { width: 120px; height: 120px; margin: 6px auto 4px; object-fit: contain; }
+  .panel .emoji-big { margin-bottom: 6px; display: flex; align-items: center; justify-content: center; }
+  .panel .emoji-big svg { width: 60px; height: 60px; }
+  .panel .rule-list .rule-ico {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; margin-right: 8px; flex-shrink: 0;
+    background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    vertical-align: middle;
+  }
+  .panel .rule-list .rule-ico svg { width: 14px; height: 14px; }
+  .panel p { font-size: 14px; color: #6b7a8a; line-height: 1.7; margin: 8px 0 16px; }
+  .panel .rule-list { text-align: left; background: #f2f7ff; border-radius: 16px; padding: 14px 16px; margin: 0 0 18px; }
+  .panel .rule-list li { font-size: 13px; color: #4a5a6a; margin: 7px 0; list-style: none; line-height: 1.5; }
+  .panel .rule-list li b { color: var(--green); white-space: nowrap; }
+
+  .legend-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 4px 0 18px; }
+  .legend-list .it {
+    display: flex; align-items: center; gap: 5px;
+    background: #f2f7ff; border-radius: 12px; padding: 5px 10px; font-size: 12px; color: #4a5a6a;
+  }
+  .legend-list .it img { width: 22px; height: 22px; border-radius: 6px; }
+  .legend-list .it b { color: var(--green); }
+
+  .btn {
+    background: linear-gradient(135deg, var(--blue), var(--green));
+    color: #fff; border: none; border-radius: 50px; padding: 14px 36px;
+    font-size: 17px; font-weight: 800; cursor: pointer; width: 100%;
+    box-shadow: 0 8px 20px rgba(91,141,239,0.4);
+    transition: transform .15s ease;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.secondary { background: #eef2f8; color: #5b8def; box-shadow: none; margin-top: 10px; }
+
+  .final-score { font-size: 48px; font-weight: 900; background: linear-gradient(135deg, var(--blue), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 6px 0; }
+  .result-title { font-size: 22px; font-weight: 800; color: #2d3a4b; margin-bottom: 4px; }
+  .breakdown { font-size: 13px; color: #8a98a8; margin: 4px 0 18px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="back-btn" onclick="goHome()">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </div>
+  <div class="stat-group">
+    <div class="stat"><span class="label">得分</span><span class="value" id="scoreVal">0</span></div>
+    <div class="stat"><span class="label">时间</span><span class="value" id="timeVal">60</span></div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<canvas id="game"></canvas>
+
+<!-- 开始 -->
+<div class="overlay" id="startOverlay">
+  <div class="panel">
+    <div class="emoji-big">
+      <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="#2fa882" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 58V30"/>
+        <path d="M32 34c-10-2-16-10-16-18 8 0 14 6 16 16"/>
+        <path d="M32 34c10-2 16-10 16-18-8 0-14 6-16 16"/>
+      </svg>
+    </div>
+    <h2>小草吞吞乐</h2>
+    <ul class="rule-list">
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#4cc9a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M12 7v5l3 2"/></svg></span>控制<b>小草</b>左右移动接住下落的食物</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>不同食物有<b>固定分值</b>，接住就加分</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#ff8fab" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8M16 8l-8 8"/></svg></span>小心 <b>0 号</b>会扣 110 分！</li>
+      <li><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#8a98a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 3h6"/></svg></span>限时 60 秒，加油！</li>
+    </ul>
+    <div class="legend-list" id="startLegend"></div>
+    <button class="btn" onclick="startGame()">开始游戏</button>
+  </div>
+</div>
+
+<!-- 结束 -->
+<div class="overlay hidden" id="endOverlay">
+  <div class="panel" id="endPanel">
+    <div class="emoji-big" id="endEmoji"></div>
+    <div class="result-title" id="endTitle">时间到！</div>
+    <img class="big-img" id="endImg" src="img/isa.png" alt="" style="display:none">
+    <div class="final-score" id="finalScore">0</div>
+    <div class="breakdown" id="breakdown"></div>
+    <button class="btn" onclick="startGame()">再试一次</button>
+    <button class="btn secondary" onclick="goHome()">返回首页</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  // 下落物配置：固定分数 + 频率权重
+  // 频率：1=多, 2=中等, 3=中等偏下（权重越大出现越多）
+  const ITEMS = [
+    { img: 'img/0.png', score: -110, weight: 1 }, // 中等偏下
+    { img: 'img/1.png', score: 11,   weight: 5 }, // 多
+    { img: 'img/2.png', score: 41,   weight: 3 }, // 中等
+    { img: 'img/3.png', score: 52,   weight: 1 }  // 中等偏下
+  ];
+  const GAME_TIME = 60;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  // 预加载所有图片
+  const imgs = ITEMS.map(it => {
+    const im = new Image();
+    im.src = it.img;
+    return im;
+  });
+  // isa.png 角色图
+  const isaImg = new Image();
+  isaImg.src = 'img/isa.png';
+  let isaLoaded = false;
+  isaImg.onload = () => isaLoaded = true;
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  let state = 'ready';
+  let score = 0, timeLeft = GAME_TIME;
+  let player = { x: 0, y: 0, w: 0, h: 0 };
+  let drops = [];
+  let effects = [];
+  let particles = [];
+  let lastTime = 0, timeAcc = 0, spawnAcc = 0, rafId = null;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+  // 按权重抽取下落物类型
+  const TOTAL_WEIGHT = ITEMS.reduce((s, it) => s + it.weight, 0);
+  function pickItem() {
+    let r = Math.random() * TOTAL_WEIGHT;
+    for (let i = 0; i < ITEMS.length; i++) {
+      if ((r -= ITEMS[i].weight) <= 0) return i;
+    }
+    return ITEMS.length - 1;
+  }
+
+  function initParticles() {
+    particles = [];
+    for (let i = 0; i < 26; i++) {
+      particles.push({ x: Math.random() * W, y: Math.random() * H, r: rand(1, 3), s: rand(0.3, 1.1), a: rand(0.15, 0.5) });
+    }
+  }
+
+  function spawnDrop() {
+    const idx = pickItem();
+    const size = rand(54, 70);
+    drops.push({
+      idx, x: rand(size, W - size), y: -size,
+      r: size / 2, vy: rand(2.4, 3.6) + (GAME_TIME - timeLeft) * 0.03,
+      rot: rand(-0.15, 0.15), vr: rand(-0.02, 0.02)
+    });
+  }
+
+  function addEffect(x, y, text, color) { effects.push({ x, y, text, color, t: 0, life: 0.9 }); }
+
+  function updateScore() {
+    score = clamp(score, -9999, 99999);
+    document.getElementById('scoreVal').textContent = score;
+  }
+
+  // ===== 绘制玩家（isa.png，等比自适应不压缩） =====
+  function drawPlayer() {
+    const x = player.x, y = player.y, w = player.w, h = player.h;
+    ctx.save();
+    if (isaLoaded && isaImg.naturalWidth && isaImg.naturalHeight) {
+      // 等比缩放：以高度为基准，width:100%;height:auto 效果，不拉伸
+      ctx.drawImage(isaImg, x - w / 2, y - h, w, h);
+    } else {
+      ctx.fillStyle = '#4cc9a0';
+      ctx.beginPath(); ctx.arc(x, y - h / 2, w / 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawDrop(d) {
+    const im = imgs[d.idx];
+    const r = d.r;
+    ctx.save();
+    ctx.translate(d.x, d.y); ctx.rotate(d.rot);
+    if (im && im.complete && im.naturalWidth) {
+      ctx.drawImage(im, -r, -r, r * 2, r * 2);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function burst(x, y, color) {
+    for (let i = 0; i < 10; i++) {
+      particles.push({ x, y, r: rand(2, 4), s: 0, a: 1, vx: rand(-3.5, 3.5), vy: rand(-4, -1), burst: true, color });
+    }
+  }
+
+  function eatDrop(d) {
+    const it = ITEMS[d.idx];
+    score += it.score;
+    if (it.score >= 0) {
+      addEffect(d.x, d.y - 10, '+' + it.score, '#ffffff');
+      burst(d.x, d.y, '#9be8c8');
+    } else {
+      addEffect(d.x, d.y - 10, String(it.score), '#ffd0d0');
+      burst(d.x, d.y, '#ff9a9a');
+    }
+    updateScore();
+  }
+
+  function update(dt) {
+    particles.forEach(p => {
+      if (p.burst) { p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.a -= 0.04; }
+      else { p.y += p.s; if (p.y > H) { p.y = 0; p.x = Math.random() * W; } }
+    });
+    particles = particles.filter(p => !(p.burst && p.a <= 0));
+
+    const elapsed = GAME_TIME - timeLeft;
+    const spawnEvery = Math.max(0.45, 1.0 - elapsed * 0.01);
+    spawnAcc += dt;
+    if (spawnAcc >= spawnEvery) { spawnAcc = 0; spawnDrop(); if (Math.random() < 0.35) spawnDrop(); }
+
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      d.y += d.vy; d.rot += d.vr;
+      // 碰撞：下落物底部接近玩家头部范围
+      const hitY = player.y - player.h * 0.55;
+      if (d.y + d.r > hitY && d.y - d.r < player.y && Math.abs(d.x - player.x) < player.w / 2 + d.r * 0.6) {
+        eatDrop(d); drops.splice(i, 1); continue;
+      }
+      if (d.y - d.r > H) drops.splice(i, 1);
+    }
+
+    effects.forEach(e => e.t += dt);
+    effects = effects.filter(e => e.t < e.life);
+  }
+
+  function render() {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#5b8def'); g.addColorStop(1, '#4cc9a0');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.a);
+      ctx.fillStyle = p.burst ? p.color : 'rgba(255,255,255,0.7)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    drops.forEach(drawDrop);
+    drawPlayer();
+
+    effects.forEach(e => {
+      ctx.globalAlpha = 1 - e.t / e.life;
+      ctx.fillStyle = e.color; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(e.text, e.x, e.y - e.t * 40);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(ts) {
+    if (state !== 'playing') return;
+    if (!lastTime) lastTime = ts;
+    let dt = Math.min((ts - lastTime) / 1000, 0.05);
+    lastTime = ts;
+
+    timeAcc += dt;
+    if (timeAcc >= 1) {
+      timeAcc -= 1; timeLeft--;
+      document.getElementById('timeVal').textContent = timeLeft;
+      if (timeLeft <= 0) { endGame(); return; }
+    }
+    update(dt); render();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function moveTo(px) { player.x = clamp(px, player.w / 2, W - player.w / 2); }
+  canvas.addEventListener('mousemove', e => { if (state === 'playing') moveTo(e.clientX); });
+  canvas.addEventListener('touchmove', e => { if (state === 'playing') { e.preventDefault(); moveTo(e.touches[0].clientX); } }, { passive: false });
+
+  function buildLegend() {
+    const legend = document.getElementById('legend');
+    const startLegend = document.getElementById('startLegend');
+    const sign = v => (v >= 0 ? '+' + v : String(v));
+    let html = ITEMS.map((it, i) =>
+      `<span class="lg"><img src="${it.img}" alt="">${sign(it.score)}</span>`
+    ).join('');
+    legend.innerHTML = html;
+    startLegend.innerHTML = ITEMS.map((it, i) =>
+      `<span class="it"><img src="${it.img}" alt="">${sign(it.score)}分</span>`
+    ).join('');
+  }
+
+  function startGame() {
+    resize();
+    score = 0; timeLeft = GAME_TIME;
+    const ph = Math.min(H * 0.32, 200);
+    const pw = ph * (isaImg.naturalWidth && isaImg.naturalHeight ? isaImg.naturalWidth / isaImg.naturalHeight : 0.62);
+    player.w = pw; player.h = ph; player.x = W / 2; player.y = H - 30;
+    drops = []; effects = []; spawnAcc = 0;
+    initParticles(); updateScore();
+    document.getElementById('timeVal').textContent = timeLeft;
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.getElementById('endOverlay').classList.add('hidden');
+    state = 'playing'; lastTime = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endGame() {
+    state = 'over';
+    if (rafId) cancelAnimationFrame(rafId);
+    document.getElementById('endImg').style.display = 'block';
+    document.getElementById('endEmoji').style.display = 'none';
+    document.getElementById('endTitle').textContent = '时间到！';
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('breakdown').textContent = '小草吞得真满足～再来一局刷更高分吧！';
+    document.getElementById('endOverlay').classList.remove('hidden');
+  }
+
+  window.startGame = startGame;
+  resize(); initParticles(); buildLegend(); render();
+})();
+
+function goHome() { window.location.href = 'index.html'; }
+</script>
+
+</body>
+</html>

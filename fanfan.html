@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>努努翻翻乐</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: var(--bg, #eef6ff);
+    min-height: 100vh; color: #2d3a4b; -webkit-text-size-adjust: 100%;
+  }
+  @media (min-width: 600px) {
+    body { background: linear-gradient(160deg, #dce8f7 0%, #e6f3ee 100%); display: flex; justify-content: center; align-items: flex-start; padding: 20px 14px; }
+    .app-shell { max-width: 440px; min-height: auto; border-radius: 32px; box-shadow: 0 20px 60px rgba(91,141,239,0.22), 0 4px 12px rgba(0,0,0,0.06); overflow: hidden; }
+  }
+  .app-shell { width: 100%; min-height: 100vh; background: var(--bg, #eef6ff); position: relative; }
+
+  /* 顶部返回条 */
+  .top-bar {
+    background: linear-gradient(135deg, #5b8def 0%, #4cc9a0 100%);
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px;
+    display: flex; align-items: center; gap: 12px; position: relative;
+  }
+  .back-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .back-btn.hidden { visibility: hidden; }
+  .back-btn svg { width: 20px; height: 20px; }
+  .ttl { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+
+  .game-body { padding: 16px 16px 24px; }
+  .hidden { display: none !important; }
+
+  /* 开始页 */
+  .home-title { text-align: center; font-size: 26px; font-weight: 800; color: #2d3a4b; margin: 6px 0 10px; }
+  .home-sub { text-align: center; font-size: 13px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .picker { max-width: 320px; margin: 0 auto 4px; }
+  .picker-title { font-size: 13px; color: #5b6b7c; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .picker-title .bullet { width: 6px; height: 6px; border-radius: 50%; background: #5b8def; }
+  .seg { display: flex; gap: 8px; }
+  .seg-btn {
+    flex: 1; border: 1.5px solid #d6e2f3; background: #fff; border-radius: 12px; padding: 10px;
+    font-size: .95rem; font-weight: 700; color: #5b6b7c; cursor: pointer; transition: all .2s;
+  }
+  .seg-btn.active { background: linear-gradient(135deg,#5b8def,#4cc9a0); color: #fff; border-color: transparent; }
+  .start-btn {
+    display: block; width: 100%; max-width: 280px; margin: 22px auto 0;
+    border: none; border-radius: 16px; padding: 16px; font-size: 1.2rem; font-weight: bold;
+    color: #fff; cursor: pointer; background: linear-gradient(135deg,#5b8def,#4cc9a0);
+    box-shadow: 0 8px 20px rgba(91,141,239,0.3); transition: all .3s;
+  }
+  .start-btn:active { transform: scale(.96); }
+
+  /* 头部信息 */
+  .hud { display: flex; gap: 10px; margin-bottom: 12px; }
+  .hud-card {
+    flex: 1; background: #fff; border-radius: 14px; padding: 10px; text-align: center;
+    box-shadow: 0 4px 12px rgba(91,141,239,0.08);
+  }
+  .hud-label { font-size: 11px; color: #8a98a8; }
+  .hud-value { font-size: 20px; font-weight: 800; color: #2d3a4b; margin-top: 2px; }
+
+  /* 操作按钮 */
+  .ops { display: flex; gap: 10px; margin-bottom: 14px; }
+  .op-btn {
+    flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: .95rem; font-weight: bold;
+    cursor: pointer; transition: all .3s; color: #fff;
+  }
+  .op-btn.restart { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .op-btn:active { transform: scale(.96); }
+
+  /* 网格 */
+  .board-wrap { background: #fff; border-radius: 18px; padding: 10px; box-shadow: 0 8px 22px rgba(91,141,239,0.1); }
+  #board { width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+
+  /* 卡片（翻转效果） */
+  .card {
+    width: 100%; aspect-ratio: 1/1; border-radius: 10px; cursor: pointer;
+    position: relative; perspective: 600px; user-select: none;
+  }
+  .card-inner {
+    position: absolute; inset: 0; transition: transform .4s; transform-style: preserve-3d;
+  }
+  .card.on .card-inner, .card.done .card-inner { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0; border-radius: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  }
+  .card-back {
+    background: linear-gradient(135deg,#5b8def,#4cc9a0); color: #fff;
+    font-size: 22px; font-weight: 800;
+  }
+  .card-front {
+    background: #eef4fb; transform: rotateY(180deg);
+  }
+  .card-front img { width: 84%; height: 84%; object-fit: contain; display: block; }
+  .card.done .card-front { background: #ffeabf; box-shadow: inset 0 0 0 3px #ffc94d; }
+  .card.free .card-front { background: #e3f7ef; box-shadow: inset 0 0 0 3px #4cc9a0; }
+  .card.deco .card-front { background: #f0ecf7; box-shadow: inset 0 0 0 3px #c9c1e0; }
+  .card:active .card-inner { filter: brightness(0.96); }
+
+  .tip { text-align: center; color: #8a98a8; font-size: .8rem; margin-top: 12px; }
+
+  /* 弹窗 */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+    justify-content: center; align-items: center; z-index: 50; padding: 24px;
+  }
+  .overlay.show { display: flex; }
+  .dialog {
+    background: #fff; border-radius: 22px; padding: 26px 22px; width: 100%; max-width: 340px;
+    text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .dialog h3 { font-size: 22px; color: #2d3a4b; margin-bottom: 14px; }
+  .dialog p { font-size: 14px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .dialog-btns { display: flex; flex-direction: column; gap: 10px; }
+  .d-btn {
+    border: none; border-radius: 14px; padding: 13px; font-size: 1rem; font-weight: bold;
+    cursor: pointer; color: #fff; transition: all .3s; background: #5b8def;
+  }
+  .d-btn.ghost { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .d-btn:active { transform: scale(.96); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="top-bar">
+    <button class="back-btn hidden" id="backBtn" onclick="goHome()" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="ttl" id="ttl">努努翻翻乐</div>
+  </div>
+
+  <!-- 开始页 -->
+  <div class="game-body" id="homePage">
+    <svg viewBox="0 0 120 120" fill="none" stroke="#5b8def" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:90px;height:90px;margin:6px auto 4px;display:block;">
+      <rect x="16" y="24" width="34" height="46" rx="6" fill="#e3edff"/>
+      <rect x="60" y="40" width="34" height="46" rx="6" fill="#e3f7ef" stroke="#4cc9a0"/>
+      <path d="M26 40h14M26 50h10" stroke-width="3"/>
+      <path d="M70 56h14M70 66h10" stroke="#4cc9a0" stroke-width="3"/>
+    </svg>
+    <h1 class="home-title">努努翻翻乐</h1>
+    <p class="home-sub">记忆翻牌配对，先选好棋盘大小再开始，<br>翻开两张相同的努努即可配对，用最少步数全部配对成功！</p>
+
+    <div class="picker">
+      <div class="picker-title"><span class="bullet"></span>选择棋盘大小</div>
+      <div class="seg" id="sizeSeg">
+        <button class="seg-btn" data-size="3">3×3</button>
+        <button class="seg-btn" data-size="4">4×4</button>
+        <button class="seg-btn active" data-size="5">5×5</button>
+      </div>
+    </div>
+
+    <button class="start-btn" id="startBtn">开始游戏</button>
+  </div>
+
+  <!-- 游戏页 -->
+  <div class="game-body hidden" id="gamePage">
+    <div class="hud">
+      <div class="hud-card"><div class="hud-label">用时</div><div class="hud-value" id="timeText">0s</div></div>
+      <div class="hud-card"><div class="hud-label">步数</div><div class="hud-value" id="stepText">0</div></div>
+      <div class="hud-card"><div class="hud-label">进度</div><div class="hud-value" id="proText">0/12</div></div>
+    </div>
+
+    <div class="ops">
+      <button class="op-btn restart" id="restartBtn">重新开始</button>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board"></div>
+    </div>
+
+    <div class="tip">翻开两张相同的努努即可配对～已翻开的格子是免费的，专注配对其余相同努努！</div>
+  </div>
+</div>
+
+<!-- 结束弹窗 -->
+<div class="overlay" id="overOverlay">
+  <div class="dialog">
+    <h3 id="overTitle">全部配对成功！</h3>
+    <p id="overText"></p>
+    <div class="dialog-btns">
+      <button class="d-btn" id="againBtn">再来一次</button>
+      <button class="d-btn ghost" id="overHomeBtn">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 素材（nu 文件夹）
+  const IMAGES = [
+    'nu/xia.png','nu/potato.png','nu/choulian.png','nu/weixiao.png','nu/tutu.png',
+    'nu/apple.png','nu/cunguan.png','nu/magic.png','nu/nagi.png','nu/ou.png',
+    'nu/rin.png','nu/shutiao.png','nu/wink.png','nu/younian.png','nu/zhuonghua.png'
+  ];
+  let SIZE = 5;                                      // 可选：3 / 4 / 5
+  let CELLS = SIZE * SIZE;                           // 格子总数
+  let FREE_INDEX = (CELLS % 2 === 1) ? Math.floor(CELLS / 2) : -1; // 奇数时中间免费格
+  let PAIRS = (CELLS - (FREE_INDEX >= 0 ? 1 : 0)) / 2;            // 配对对数
+
+  const board = document.getElementById('board');
+  const timeText = document.getElementById('timeText');
+  const stepText = document.getElementById('stepText');
+  const proText = document.getElementById('proText');
+  const overOverlay = document.getElementById('overOverlay');
+
+  let cards = [];        // {el, img, done}
+  let first = null;      // 第一张翻开的卡
+  let lockBoard = false; // 处理中锁定
+  let step = 0;
+  let matched = 0;
+  let seconds = 0;
+  let timer = null;
+  let started = false;
+
+  // 洗牌
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function buildLayout() {
+    const pairCount = PAIRS;
+    const pool = shuffle([...IMAGES]).slice(0, pairCount);          // 配对用图
+    const decoPool = shuffle(IMAGES.filter(src => !pool.includes(src))); // 装饰格用图（不与配对图重复）
+    let deck = [];
+    pool.forEach(src => { deck.push(src); deck.push(src); });
+    deck = shuffle(deck);
+
+    const layout = [];
+    let usedFromDeck = 0, decoIdx = 0;
+    for (let i = 0; i < CELLS; i++) {
+      if (FREE_INDEX >= 0 && i === FREE_INDEX) {
+        layout.push({ free: true, img: pool[Math.floor(Math.random() * pool.length)] });
+      } else if (usedFromDeck < pairCount * 2) {
+        layout.push({ free: false, img: deck[usedFromDeck++] });
+      } else {
+        const d = decoPool.length ? decoPool[decoIdx++ % decoPool.length] : pool[Math.floor(Math.random() * pool.length)];
+        layout.push({ deco: true, img: d });
+      }
+    }
+    return layout;
+  }
+
+  function render() {
+    board.style.gridTemplateColumns = 'repeat(' + SIZE + ', 1fr)';
+    const layout = buildLayout();
+    board.innerHTML = '';
+    cards = [];
+    layout.forEach((cell, i) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<div class="card-inner">' +
+          '<div class="card-face card-back">?</div>' +
+          '<div class="card-face card-front"><img src="' + cell.img + '" alt=""></div>' +
+        '</div>';
+      const obj = { el: card, img: cell.img, done: false, free: cell.free, deco: cell.deco };
+      if (cell.free || cell.deco) {
+        // 免费格 / 装饰格：直接翻开、不可点击、不计入配对
+        card.classList.add('done', cell.free ? 'free' : 'deco');
+        obj.done = true;
+      } else {
+        card.addEventListener('click', () => onFlip(obj));
+      }
+      cards.push(obj);
+      board.appendChild(card);
+    });
+    matched = 0;
+    step = 0;
+    updateHud();
+  }
+
+  function onFlip(obj) {
+    if (lockBoard || obj.done || obj === first) return;
+    if (obj.el.classList.contains('on')) return;
+
+    if (!started) { started = true; startTimer(); }
+
+    obj.el.classList.add('on');
+
+    if (!first) { first = obj; return; }
+
+    // 第二张
+    step++;
+    updateHud();
+
+    if (first.img === obj.img) {
+      // 配对成功
+      first.done = obj.done = true;
+      first.el.classList.add('done');
+      obj.el.classList.add('done');
+      first = null;
+      matched++;
+      updateHud();
+      if (matched >= PAIRS) finish();
+    } else {
+      // 不匹配：翻回
+      lockBoard = true;
+      const a = first, b = obj;
+      setTimeout(() => {
+        a.el.classList.remove('on');
+        b.el.classList.remove('on');
+        first = null;
+        lockBoard = false;
+      }, 800);
+    }
+  }
+
+  function updateHud() {
+    timeText.textContent = seconds + 's';
+    stepText.textContent = step;
+    proText.textContent = matched + '/' + PAIRS;
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    timer = setInterval(() => { seconds++; updateHud(); }, 1000);
+  }
+
+  function finish() {
+    clearInterval(timer);
+    let rank = '记忆达人';
+    if (step <= PAIRS + 2) rank = '记忆宗师';
+    else if (step <= PAIRS + 6) rank = '记忆大师';
+    else if (step <= PAIRS + 12) rank = '记忆高手';
+    document.getElementById('overText').textContent =
+      SIZE + '×' + SIZE + '，共 ' + PAIRS + ' 对，用时 ' + seconds + ' 秒，共 ' + step + ' 步。你是「' + rank + '」！';
+    overOverlay.classList.add('show');
+  }
+
+  function startGame() {
+    overOverlay.classList.remove('show');
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('gamePage').classList.remove('hidden');
+    document.getElementById('backBtn').classList.remove('hidden');
+    // 重置
+    clearInterval(timer);
+    seconds = 0; step = 0; matched = 0; first = null; lockBoard = false; started = false;
+    render();
+  }
+
+  function goHome() {
+    clearInterval(timer);
+    window.location.href = 'index.html';
+  }
+
+  // 棋盘大小选择（单选，最多显示一个选中项）
+  document.getElementById('sizeSeg').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    document.querySelectorAll('#sizeSeg .seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    SIZE = parseInt(btn.dataset.size, 10);
+    CELLS = SIZE * SIZE;
+    FREE_INDEX = (CELLS % 2 === 1) ? Math.floor(CELLS / 2) : -1;
+    PAIRS = (CELLS - (FREE_INDEX >= 0 ? 1 : 0)) / 2;
+  });
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', startGame);
+  document.getElementById('overHomeBtn').addEventListener('click', goHome);
+
+  // 防止手机端双击缩放（不拦截交互元素）
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e) {
+    const t = e.target;
+    if (t && t.closest && t.closest('button, a, .card')) return;
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>查找不一样</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: var(--bg, #eef6ff);
+    min-height: 100vh; color: #2d3a4b; -webkit-text-size-adjust: 100%;
+  }
+  @media (min-width: 600px) {
+    body { background: linear-gradient(160deg, #dce8f7 0%, #e6f3ee 100%); display: flex; justify-content: center; align-items: flex-start; padding: 20px 14px; }
+    .app-shell { max-width: 440px; min-height: auto; border-radius: 32px; box-shadow: 0 20px 60px rgba(91,141,239,0.22), 0 4px 12px rgba(0,0,0,0.06); overflow: hidden; }
+  }
+  .app-shell { width: 100%; min-height: 100vh; background: var(--bg, #eef6ff); position: relative; }
+
+  /* 顶部返回条 */
+  .top-bar {
+    background: linear-gradient(135deg, #5b8def 0%, #4cc9a0 100%);
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px;
+    display: flex; align-items: center; gap: 12px; position: relative;
+  }
+  .back-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .back-btn.hidden { visibility: hidden; }
+  .back-btn svg { width: 20px; height: 20px; }
+  .ttl { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+
+  .game-body { padding: 16px 16px 24px; }
+  .hidden { display: none !important; }
+
+  /* 开始页 */
+  .home-title { text-align: center; font-size: 26px; font-weight: 800; color: #2d3a4b; margin: 6px 0 10px; }
+  .home-sub { text-align: center; font-size: 13px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .start-btn {
+    display: block; width: 100%; max-width: 280px; margin: 22px auto 0;
+    border: none; border-radius: 16px; padding: 16px; font-size: 1.2rem; font-weight: bold;
+    color: #fff; cursor: pointer; background: linear-gradient(135deg,#5b8def,#4cc9a0);
+    box-shadow: 0 8px 20px rgba(91,141,239,0.3); transition: all .3s;
+  }
+  .start-btn:active { transform: scale(.96); }
+
+  /* 模式选择 */
+  .mode-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .mode-card {
+    flex: 1; background: #fff; border-radius: 16px; padding: 14px 10px; text-align: center;
+    cursor: pointer; border: 3px solid transparent; box-shadow: 0 5px 14px rgba(91,141,239,0.08);
+    transition: all .2s;
+  }
+  .mode-card.active { border-color: #5b8def; box-shadow: 0 0 12px rgba(91,141,239,0.4); }
+  .mode-card .mode-ico { font-size: 26px; line-height: 1; margin-bottom: 6px; }
+  .mode-card .mode-name { font-size: 13px; font-weight: 800; color: #2d3a4b; }
+  .mode-card .mode-desc { font-size: 10.5px; color: #8a98a8; margin-top: 3px; line-height: 1.3; }
+
+  /* 元素选择 */
+  .picker {
+    background: #fff; border-radius: 18px; padding: 14px; margin-bottom: 14px;
+    box-shadow: 0 5px 14px rgba(91,141,239,0.08);
+  }
+  .picker-title { font-size: 13px; font-weight: 800; color: #2d3a4b; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .picker-title .bullet { width: 6px; height: 16px; border-radius: 4px; background: linear-gradient(180deg,#5b8def,#4cc9a0); }
+  .picker-scroll { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .pick-item {
+    width: 100%; aspect-ratio: 1/1; border-radius: 14px; overflow: hidden;
+    border: 3px solid transparent; background: #f1f5fb; cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pick-item img { width: 100%; height: auto; display: block; }
+  .pick-item.active { border-color: #5b8def; box-shadow: 0 0 10px rgba(91,141,239,0.5); }
+
+  /* 头部信息 */
+  .hud { display: flex; gap: 10px; margin-bottom: 12px; }
+  .hud-card {
+    flex: 1; background: #fff; border-radius: 14px; padding: 10px; text-align: center;
+    box-shadow: 0 4px 12px rgba(91,141,239,0.08);
+  }
+  .hud-label { font-size: 11px; color: #8a98a8; }
+  .hud-value { font-size: 20px; font-weight: 800; color: #2d3a4b; margin-top: 2px; }
+  .hud-value.danger { color: #ff6b6b; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* 操作按钮 */
+  .ops { display: flex; gap: 10px; margin-bottom: 14px; }
+  .op-btn {
+    flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: .95rem; font-weight: bold;
+    cursor: pointer; transition: all .3s; color: #fff;
+  }
+  .op-btn.restart { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .op-btn:active { transform: scale(.96); }
+
+  /* 网格 */
+  .board-wrap { background: #fff; border-radius: 18px; padding: 12px; box-shadow: 0 8px 22px rgba(91,141,239,0.1); }
+  #board { width: 100%; display: grid; gap: 6px; }
+  .cell {
+    width: 100%; aspect-ratio: 1/1; border-radius: 12px; background: #eef4fb;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: transform .15s, box-shadow .2s; overflow: hidden; user-select: none;
+  }
+  .cell:active { transform: scale(.94); }
+  .cell img { width: 86%; height: 86%; object-fit: contain; display: block; }
+  .cell.selected { box-shadow: 0 0 0 4px #ff6b6b; }
+  .cell.correct { animation: correctPulse .6s; box-shadow: 0 0 0 4px #00b09b; }
+  .cell.wrong { box-shadow: 0 0 0 4px #ff6b6b; }
+  @keyframes correctPulse { 0%,100% { transform: scale(1);} 50% { transform: scale(1.06);} }
+
+  .tip { text-align: center; color: #8a98a8; font-size: .8rem; margin-top: 12px; }
+
+  /* 弹窗 */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+    justify-content: center; align-items: center; z-index: 50; padding: 24px;
+  }
+  .overlay.show { display: flex; }
+  .dialog {
+    background: #fff; border-radius: 22px; padding: 26px 22px; width: 100%; max-width: 340px;
+    text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .dialog h3 { font-size: 22px; color: #2d3a4b; margin-bottom: 14px; }
+  .dialog p { font-size: 14px; color: #8a98a8; line-height: 1.6; margin-bottom: 18px; }
+  .dialog-btns { display: flex; flex-direction: column; gap: 10px; }
+  .d-btn {
+    border: none; border-radius: 14px; padding: 13px; font-size: 1rem; font-weight: bold;
+    cursor: pointer; color: #fff; transition: all .3s; background: #5b8def;
+  }
+  .d-btn.ghost { background: linear-gradient(135deg,#4cc9a0,#2fa882); }
+  .d-btn:active { transform: scale(.96); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <div class="top-bar">
+    <button class="back-btn hidden" id="backBtn" onclick="goHome()" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="ttl" id="ttl">查找不一样</div>
+  </div>
+
+  <!-- 开始页 -->
+  <div class="game-body" id="homePage">
+    <svg class="home-illust" viewBox="0 0 120 120" fill="none" stroke="#5b8def" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:90px;height:90px;margin:6px auto 4px;display:block;">
+      <circle cx="40" cy="48" r="22" fill="#e3edff"/>
+      <circle cx="80" cy="48" r="22" fill="#e3f7ef"/>
+      <path d="M33 44h.5M47 44h.5M73 44h.5M87 44h.5" stroke-width="4"/>
+      <path d="M40 56s3 4 0 4M80 56s3 4 0 4" />
+      <path d="M30 18l5 7M90 18l-5 7" stroke="#4cc9a0"/>
+    </svg>
+    <h1 class="home-title">查找不一样</h1>
+    <p class="home-sub">先选玩法，再选一只努努，<br>在众多相同中找出那只不一样的！</p>
+
+    <div class="mode-row">
+      <div class="mode-card active" id="modeColor" data-mode="color">
+        <div class="mode-ico">🎨</div>
+        <div class="mode-name">找背景色</div>
+        <div class="mode-desc">同只努努<br>找出背景色不同的</div>
+      </div>
+      <div class="mode-card" id="modeImage" data-mode="image">
+        <div class="mode-ico">🔍</div>
+        <div class="mode-name">找不同努</div>
+        <div class="mode-desc">同背景色<br>找出不同的努努</div>
+      </div>
+    </div>
+
+    <div class="picker">
+      <div class="picker-title"><span class="bullet"></span>选择努努元素（默认虾虾）</div>
+      <div class="picker-scroll" id="pickerScroll"></div>
+    </div>
+
+    <button class="start-btn" id="startBtn">开始游戏</button>
+  </div>
+
+  <!-- 游戏页 -->
+  <div class="game-body hidden" id="gamePage">
+    <div class="hud">
+      <div class="hud-card"><div class="hud-label">关卡</div><div class="hud-value" id="levelText">1</div></div>
+      <div class="hud-card"><div class="hud-label">剩余时间</div><div class="hud-value" id="timeText">30</div></div>
+    </div>
+
+    <div class="ops">
+      <button class="op-btn restart" id="restartBtn">重新开始</button>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="lv2"></div>
+    </div>
+
+    <div class="tip">在众多相同的努努中，找出那一只不一样的！</div>
+  </div>
+</div>
+
+<!-- 结束弹窗 -->
+<div class="overlay" id="overOverlay">
+  <div class="dialog">
+    <h3 id="overTitle">游戏结束</h3>
+    <p id="overText"></p>
+    <div class="dialog-btns">
+      <button class="d-btn" id="againBtn">再来一次</button>
+      <button class="d-btn ghost" id="overHomeBtn">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 元素图片（nu 文件夹），默认 xia.png
+  const ELEMENTS = [
+    'nu/xia.png','nu/potato.png','nu/choulian.png','nu/weixiao.png','nu/tutu.png',
+    'nu/apple.png','nu/cunguan.png','nu/magic.png','nu/nagi.png','nu/ou.png',
+    'nu/rin.png','nu/shutiao.png','nu/wink.png','nu/younian.png','nu/zhuonghua.png'
+  ];
+  let baseImage = 'nu/xia.png';
+
+  // 从 URL 读取默认模式（?mode=color 或 ?mode=image）
+  const params = new URLSearchParams(location.search);
+  let selectedMode = params.get('mode') === 'image' ? 'image' : 'color';
+
+  // 状态
+  let currentLevel = 1;
+  let gridSize = 2;
+  let gameTime = 30;
+  let timer = null;
+  let targetIndex = 0;
+  let locked = false; // 防止连点
+  let baseColor = null;
+  let targetColor = null;
+
+  const board = document.getElementById('board');
+  const levelText = document.getElementById('levelText');
+  const timeText = document.getElementById('timeText');
+  const pickerScroll = document.getElementById('pickerScroll');
+  const overOverlay = document.getElementById('overOverlay');
+
+  // 渲染元素选择器
+  function renderPicker() {
+    pickerScroll.innerHTML = '';
+    ELEMENTS.forEach(src => {
+      const item = document.createElement('div');
+      item.className = 'pick-item' + (src === baseImage ? ' active' : '');
+      const img = document.createElement('img');
+      img.src = src; img.alt = '';
+      item.appendChild(img);
+      item.addEventListener('click', () => {
+        baseImage = src;
+        renderPicker();
+      });
+      pickerScroll.appendChild(item);
+    });
+  }
+
+  // 网格尺寸随关卡增长
+  function computeGridSize() {
+    if (currentLevel <= 1) gridSize = 2;
+    else if (currentLevel === 2) gridSize = 3;
+    else if (currentLevel <= 4) gridSize = 4;
+    else if (currentLevel <= 7) gridSize = 5;
+    else if (currentLevel <= 10) gridSize = 6;
+    else if (currentLevel <= 14) gridSize = 7;
+    else gridSize = 8;
+  }
+
+  // 随机选一张"不一样"的努努（与基础图不同）
+  function pickDifferentImage() {
+    const others = ELEMENTS.filter(s => s !== baseImage);
+    return others[Math.floor(Math.random() * others.length)];
+  }
+
+  // 色差模式：随机蓝色系基础色
+  function getRandomBlueColor() {
+    const r = Math.floor(Math.random() * 50 + 100);
+    const g = Math.floor(Math.random() * 100 + 100);
+    const b = Math.floor(Math.random() * 100 + 155);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  // 与基础色略有差异（关卡越高差异越小）
+  function getDifferentColor() {
+    const rgb = baseColor.match(/\d+/g);
+    let r = parseInt(rgb[0]), g = parseInt(rgb[1]), b = parseInt(rgb[2]);
+    const difficultyFactor = Math.max(0.3, 1 - currentLevel * 0.05);
+    const adj = (v) => {
+      const d = (Math.random() < 0.5 ? 1 : -1) * Math.floor(30 * difficultyFactor);
+      return Math.min(255, Math.max(0, v + d));
+    };
+    return `rgb(${adj(r)}, ${adj(g)}, ${adj(b)})`;
+  }
+
+  function generateGrid() {
+    computeGridSize();
+    board.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    board.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+    board.innerHTML = '';
+    levelText.textContent = currentLevel;
+    locked = false;
+
+    const count = gridSize * gridSize;
+    targetIndex = Math.floor(Math.random() * count);
+    const diffImg = pickDifferentImage();
+
+    if (selectedMode === 'color') {
+      // 模式A：所有格子同一只努，其中一个背景色不同
+      baseColor = getRandomBlueColor();
+      targetColor = getDifferentColor();
+    }
+
+    for (let i = 0; i < count; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const img = document.createElement('img');
+      img.src = baseImage;
+      img.alt = '';
+      cell.appendChild(img);
+      if (selectedMode === 'color') {
+        cell.style.backgroundColor = (i === targetIndex) ? targetColor : baseColor;
+      } else {
+        // 模式B：所有格子同背景色，其中一个努图片不同
+        cell.style.backgroundColor = '#eef4fb';
+        img.src = (i === targetIndex) ? diffImg : baseImage;
+      }
+      cell.addEventListener('click', () => handleClick(cell, i === targetIndex));
+      board.appendChild(cell);
+    }
+  }
+
+  function handleClick(cell, isTarget) {
+    if (locked) return;
+    document.querySelectorAll('.cell.selected').forEach(el => el.classList.remove('selected'));
+    cell.classList.add('selected');
+
+    if (isTarget) {
+      cell.classList.add('correct');
+      locked = true;
+      setTimeout(() => { nextLevel(); }, 450);
+    } else {
+      cell.classList.add('wrong');
+      setTimeout(() => cell.classList.remove('wrong'), 400);
+      gameTime = Math.max(0, gameTime - 3);
+      timeText.textContent = gameTime;
+      if (gameTime < 10) timeText.classList.add('danger');
+      if (gameTime <= 0) gameOver();
+    }
+  }
+
+  function nextLevel() {
+    currentLevel++;
+    gameTime += 3;
+    timeText.textContent = gameTime;
+    if (gameTime >= 10) timeText.classList.remove('danger');
+    generateGrid();
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    gameTime = 30;
+    timeText.textContent = gameTime;
+    timeText.classList.remove('danger');
+    timer = setInterval(() => {
+      gameTime--;
+      timeText.textContent = gameTime;
+      if (gameTime < 10) timeText.classList.add('danger');
+      if (gameTime <= 0) gameOver();
+    }, 1000);
+  }
+
+  function startGame() {
+    currentLevel = 1;
+    hideAll();
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('gamePage').classList.remove('hidden');
+    document.getElementById('backBtn').classList.remove('hidden');
+    generateGrid();
+    startTimer();
+  }
+
+  function gameOver() {
+    clearInterval(timer);
+    const titles = ["观察萌新","观察能手","观察熟手","观察高手","观察达人","观察大师","观察宗师"];
+    let idx = 0;
+    if (currentLevel >= 20) idx = 6;
+    else if (currentLevel >= 15) idx = 5;
+    else if (currentLevel >= 10) idx = 4;
+    else if (currentLevel >= 7) idx = 3;
+    else if (currentLevel >= 4) idx = 2;
+    else if (currentLevel >= 2) idx = 1;
+    document.getElementById('overTitle').textContent = '游戏结束';
+    document.getElementById('overText').textContent = `你是「${titles[idx]}」，闯过了 ${currentLevel} 关！`;
+    overOverlay.classList.add('show');
+  }
+
+  function hideAll() {
+    overOverlay.classList.remove('show');
+  }
+  function goHome() {
+    clearInterval(timer);
+    window.location.href = 'index.html';
+  }
+
+  // 模式切换
+  function setMode(mode) {
+    selectedMode = mode;
+    document.getElementById('modeColor').classList.toggle('active', mode === 'color');
+    document.getElementById('modeImage').classList.toggle('active', mode === 'image');
+    document.getElementById('ttl').textContent = mode === 'color' ? '查找不一样·找背景色' : '查找不一样·找不同努';
+  }
+  document.getElementById('modeColor').addEventListener('click', () => setMode('color'));
+  document.getElementById('modeImage').addEventListener('click', () => setMode('image'));
+
+  // 绑定
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', startGame);
+  document.getElementById('overHomeBtn').addEventListener('click', goHome);
+
+  // 启动：根据 URL 参数初始化模式，渲染选择器，不直接进入游戏
+  setMode(selectedMode);
+  renderPicker();
+
+  // 防止手机端双击缩放（但不拦截按钮等交互元素的点击）
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e) {
+    const t = e.target;
+    if (t && t.closest && t.closest('button, a, input, .cell, .pick-item, .mode-card')) return;
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+</script>
+</body>
+</html>

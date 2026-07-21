@@ -1,60 +1,282 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<meta name="apple-mobile-web-app-capable" content="yes">
-	<meta name="mobile-web-app-capable" content="yes">
-	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<meta name="format-detection" content="telephone=no">
-    <title>ISAGI🌱GAME</title>
-    <link href="css/main.css" type="text/css" rel="stylesheet"/>
-    <link href="css/game.css" type="text/css" rel="stylesheet"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>isgame小游戏集合</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --blue: #5b8def;
+    --blue-deep: #3a6fd8;
+    --green: #4cc9a0;
+    --green-deep: #2fa882;
+    --bg: #eef6ff;
+    --card-bg: #ffffff;
+    --text-dark: #2d3a4b;
+    --text-gray: #8a98a8;
+  }
+
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--text-dark);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-shell {
+    width: 100%;
+    min-height: 100vh;
+    background: var(--bg);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 大屏（平板/桌面）仍用居中手机壳，保证美观 */
+  @media (min-width: 600px) {
+    body {
+      background: linear-gradient(160deg, #dce8f7 0%, #e6f3ee 100%);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px 14px;
+    }
+    .app-shell {
+      max-width: 440px;
+      min-height: auto;
+      border-radius: 32px;
+      box-shadow: 0 20px 60px rgba(91, 141, 239, 0.22), 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .app-header { border-radius: 32px 32px 0 0; }
+  }
+
+  /* 顶部 */
+  .app-header {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--green) 100%);
+    padding: calc(env(safe-area-inset-top, 0px) + 42px) 26px 30px;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-header::before {
+    content: ''; position: absolute; top: -40px; right: -30px;
+    width: 150px; height: 150px; background: rgba(255,255,255,0.12);
+    border-radius: 30px; transform: rotate(20deg);
+  }
+  .app-header::after {
+    content: ''; position: absolute; bottom: -50px; left: -20px;
+    width: 130px; height: 130px; background: rgba(255,255,255,0.1);
+    border-radius: 26px; transform: rotate(-15deg);
+  }
+  .header-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; }
+  .logo-badge {
+    width: 52px; height: 52px; border-radius: 16px;
+    background: rgba(255,255,255,0.22);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); flex-shrink: 0;overflow: hidden;
+  }
+  .logo-badge img { width: 100%; height: auto; border-radius: 8px; object-fit: contain; }
+  .app-title h1 { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 1px; }
+  .app-title p { font-size: 12px; color: rgba(255,255,255,0.88); margin-top: 3px; }
+
+  /* 内容 */
+  .app-content { padding: 22px 18px 28px; }
+
+  .section-label {
+    display: flex; align-items: center; gap: 8px; margin: 6px 4px 16px;
+  }
+  .section-label .dot {
+    width: 8px; height: 18px; border-radius: 6px;
+    background: linear-gradient(180deg, var(--blue), var(--green));
+  }
+  .section-label h3 { font-size: 16px; font-weight: 800; color: var(--text-dark); }
+  .section-label .count { font-size: 11px; color: var(--text-gray); margin-left: auto; }
+
+  .game-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 12px;
+  }
+  /* 所有区块统一一行三个 */
+  .game-grid.cols-2 { grid-template-columns: repeat(3, 1fr); }
+
+  .game-card {
+    background: var(--card-bg); border-radius: 20px; padding: 14px 8px 12px;
+    cursor: pointer; text-align: center; position: relative;
+    box-shadow: 0 5px 14px rgba(91, 141, 239, 0.08);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+  .game-card:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(91, 141, 239, 0.18); }
+  .game-card:active { transform: scale(0.94); }
+
+  .icon-box {
+    width: 50px; height: 50px; border-radius: 16px; margin: 0 auto 9px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-box svg { width: 28px; height: 28px; }
+  .icon-box.blue { background: linear-gradient(135deg, #e3edff, #d4e2ff); }
+  .icon-box.green { background: linear-gradient(135deg, #e3f7ef, #d4f3e8); }
+  .icon-box.teal { background: linear-gradient(135deg, #e0f4f1, #d4eee9); }
+  .icon-box.mix { background: linear-gradient(135deg, #e6ecff, #e3f6ef); }
+
+  .card-title { font-size: 12.5px; font-weight: 700; color: var(--text-dark); line-height: 1.3; }
+
+  /* 一句话小解释（独立整块，不在网格内） */
+  .game-note {
+    background: linear-gradient(135deg, #f0f5ff, #effaf4);
+    border-radius: 14px; padding: 10px 14px;
+    font-size: 11px; color: var(--text-gray); line-height: 1.4;
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 28px;
+  }
+  .game-note .bullet { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
+
+  .foot-tip {
+    text-align: center; font-size: 11px; color: var(--text-gray);
+    padding: 6px 0 4px;
+  }
+</style>
 </head>
-<body class="bg">
-    <div class="game-wrapper">
-        <div id="homePage" class="game-page active">
-            <div class="puzzle-bg"></div>
-            <div class="home-content">
-                <h1 class="game-title">ISAGI🌱GAME</h1>
-                <p class="game-intro">
-                    欢迎来到<strong>「小草的游戏园」</strong><br/>
-                    感谢您的访问，希望您游玩愉快~
-                </p>
-                <div class="game-ul">
-                    <div class="game-li">
-                        <h3>益智类</h3>
-                        <div class="btns">
-                            <a class="btn btn--game" href="xcttl.html">小草吞吞乐</a>
-                            <a class="btn btn--game" href="nunuddp4.2.html">努努对对碰</a>
-                        </div>
-                    </div>
-                    
-                    <div class="game-li">
-                        <h3>射击类</h3>
-                        <div class="btns">
-                            <a class="btn btn--game" href="zhanxia2.0.html">虾虾保卫战</a>
-                            <a class="btn btn--game" href="zhanxia3.3.html">战虾！！！</a>
-                        </div>
-                    </div>
-                    
-                    <div class="game-li">
-                        <h3>眼力类</h3>
-                        <div class="btns">
-                            <a class="btn btn--game" href="xunzaoxiaxia.html">寻找色虾</a>
-                            <a class="btn btn--game" href="xunzaopotato.html">不一样的小土豆</a>
-                        </div>
-                    </div>
-                    
-                    <div class="game-li">
-                        <h3>运气类</h3>
-                        <div class="btns">
-                            <a class="btn btn--game" href="xynu.html">努匹配</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<body>
+
+<div class="app-shell">
+
+  <div class="app-header">
+    <div class="header-inner">
+      <div class="logo-badge">
+        <img src="img/logo.jpg" alt="isgame">
+      </div>
+      <div class="app-title">
+        <h1>isgame小游戏集合</h1>
+        <p>每天玩一玩，开心一整天</p>
+      </div>
     </div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- 热门推荐 -->
+    <div class="section-label"><span class="dot"></span><h3>热门推荐</h3><span class="count">4 款</span></div>
+    <div class="game-grid cols-2">
+      <div class="game-card" onclick="location.href='hatch.html'">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2fa882" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12c-3 0-5-2-5-5 3 0 5 2 5 5z"/><path d="M12 12c3 0 5-2 5-5-3 0-5 2-5 5z"/><circle cx="12" cy="7" r="2"/></svg>
+        </div>
+        <div class="card-title">小草孵化中</div>
+      </div>
+      <div class="game-card" onclick="location.href='grass.html'">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2bb39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20c0-5 0-9 0-14"/><path d="M12 6c-3 0-5-2-5-5 3 0 5 2 5 5z"/><path d="M12 6c3 0 5-2 5-5-3 0-5 2-5 5z"/><circle cx="12" cy="3" r="2"/></svg>
+        </div>
+        <div class="card-title">小草吞吞乐</div>
+      </div>
+      <div class="game-card" onclick="location.href='nuddp.html'">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3a6fd8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="10" r="4"/><circle cx="16" cy="14" r="4"/><path d="M4 18l16-8"/></svg>
+        </div>
+        <div class="card-title">努努对对碰</div>
+      </div>
+      <div class="game-card" onclick="location.href='xiaoxiao.html'">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2fa882" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="7" height="7" rx="1.5" fill="#e3f7ef"/><rect x="14" y="6" width="7" height="7" rx="1.5" fill="#c9f0e2"/><rect x="8.5" y="14" width="7" height="7" rx="1.5" fill="#e3f7ef"/></svg>
+        </div>
+        <div class="card-title">努努消消乐</div>
+      </div>
+    </div>
+    <div class="game-note"><span class="bullet"></span>最受欢迎的消除与配对玩法，轻松上手超解压～</div>
+
+    <!-- 观察力挑战 -->
+    <div class="section-label"><span class="dot"></span><h3>观察力挑战</h3><span class="count">3 款</span></div>
+    <div class="game-grid">
+      <div class="game-card" onclick="location.href='finddiff.html?mode=color'">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2" fill="#e3edff"/><rect x="13" y="3" width="8" height="8" rx="2" fill="#c9defb"/><rect x="3" y="13" width="8" height="8" rx="2" fill="#c9defb"/><rect x="13" y="13" width="8" height="8" rx="2" fill="#e3edff"/></svg>
+        </div>
+        <div class="card-title">查找不一样·找背景色</div>
+      </div>
+      <div class="game-card" onclick="location.href='finddiff.html?mode=image'">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3a6fd8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5" fill="#e3edff"/><circle cx="16" cy="12" r="3" fill="#c9defb"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z" opacity="0.25"/></svg>
+        </div>
+        <div class="card-title">查找不一样·找不同努</div>
+      </div>
+      <div class="game-card" onclick="location.href='fanfan.html'">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2bb39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="9" rx="1.5" fill="#e3f7ef"/><rect x="14" y="7" width="7" height="9" rx="1.5" fill="#c9f0e2"/><path d="M5.5 7h2M5.5 10h1.5M16.5 10h2M16.5 13h1.5"/></svg>
+        </div>
+        <div class="card-title">努努翻翻乐</div>
+      </div>
+    </div>
+    <div class="game-note"><span class="bullet"></span>在众多相同中找出那只不一样的，或翻牌记忆配对——越往后越烧脑！</div>
+
+    <!-- 冒险收集 -->
+    <div class="section-label"><span class="dot"></span><h3>冒险收集</h3><span class="count">1 款</span></div>
+    <div class="game-grid">
+      <div class="game-card" onclick="location.href='nunutown.html'">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#e6556a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6l4-2 8 2 4-2v13l-4 2-8-2-4 2z"/><path d="M8 4v13M16 6v13"/></svg>
+        </div>
+        <div class="card-title">努努小镇图鉴</div>
+      </div>
+    </div>
+    <div class="game-note"><span class="bullet"></span>调查怪异努努、通关互动挑战，把它们一只只收进图鉴——先从虾努开始！</div>
+    
+    <!-- 正在开发中 -->
+    <div class="section-label"><span class="dot"></span><h3>正在开发中</h3><span class="count">6 款</span></div>
+	<div class="game-grid">
+      <div class="game-card" onclick="goGame('跳跳高')">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2bb39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V8"/><path d="M8 12l4-4 4 4"/><path d="M9 4l3-2 3 2"/></svg>
+        </div>
+        <div class="card-title">跳跳高</div>
+      </div>
+      <div class="game-card" onclick="goGame('消消乐')">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2fa882" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="9" y="14" width="6" height="6" rx="1.5"/></svg>
+        </div>
+        <div class="card-title">消消乐</div>
+      </div>
+      <div class="game-card" onclick="goGame('下100层')">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M8 12l4 4 4-4"/><path d="M5 20l3 2 3-2 3 2 3-2"/></svg>
+        </div>
+        <div class="card-title">下100层</div>
+      </div>
+    </div>
+    <div class="game-note"><span class="bullet"></span>永不过时的经典玩法，碎片时间必备良药。</div>
+    <div class="game-grid">
+      <div class="game-card" onclick="goGame('测一测你的命定努')">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5b8def" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>
+        </div>
+        <div class="card-title">命定努测试</div>
+      </div>
+      <div class="game-card" onclick="goGame('养成幼努')">
+        <div class="icon-box green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2fa882" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="5"/><path d="M9 9h.01M15 9h.01"/><path d="M10 12.5s1 1 2 1 2-1 2-1"/><path d="M12 15v4M9 22h6"/></svg>
+        </div>
+        <div class="card-title">养成幼努</div>
+      </div>
+      <div class="game-card" onclick="goGame('努努小镇规则怪谈')">
+        <div class="icon-box blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2bb39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/><path d="M12 3v3"/></svg>
+        </div>
+        <div class="card-title">小镇怪谈</div>
+      </div>
+    </div>
+    <div class="game-note"><span class="bullet"></span>测测命定努、养成专属幼努、闯关规则怪谈，脑洞大开～</div>
+
+    <div class="foot-tip">更多好玩小游戏，正在路上～</div>
+
+  </div>
+
+</div>
+
+<script>
+  function goGame(name) {
+    alert('「' + name + '」正在开发中，敬请期待！');
+  }
+</script>
+
 </body>
 </html>
